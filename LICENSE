@@ -21,7 +21,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ------------------------------------------------------------------------------
-适用范围说明（见《软件实现计划》§1 K8 / §2.1）：
+适用范围说明：
 本 MIT 许可适用于解决方案中除以下项目外的全部代码：
   - src/EarCtrl.Agents.Huawei        → GPL-3.0-only（见该目录 LICENSE）
   - src/EarCtrl.Agents.Huawei.Tests  → GPL-3.0-only
