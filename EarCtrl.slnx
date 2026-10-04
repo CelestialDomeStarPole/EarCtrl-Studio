@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EarCtrl.Agents.Huawei.Tests/EarCtrl.Agents.Huawei.Tests.csproj" />
+    <Project Path="src/EarCtrl.Agents.Huawei/EarCtrl.Agents.Huawei.csproj" />
+    <Project Path="src/EarCtrl.App/EarCtrl.App.csproj" />
+    <Project Path="src/EarCtrl.Core/EarCtrl.Core.csproj" />
+    <Project Path="src/EarCtrl.Ipc/EarCtrl.Ipc.csproj" />
+  </Folder>
+</Solution>

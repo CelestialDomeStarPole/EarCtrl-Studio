@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>EarCtrl.Ipc</RootNamespace>
+    <!-- License: MIT。IPC 契约与 NamedPipe 传输，主程序与各 Agent 双端复用 -->
+  </PropertyGroup>
+
+</Project>

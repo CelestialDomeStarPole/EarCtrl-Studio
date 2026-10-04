@@ -1,0 +1,33 @@
+{
+  "$schema": "https://earctrl.local/schemas/device-profile.schema.json",
+  "schemaVersion": 1,
+  "brand": "huawei",
+  "agentExe": "EarCtrl.Agent.Huawei.exe",
+  "pipeName": "earctrl.agent.huawei",
+  "model": {
+    "name": "HUAWEI FreeBuds SE 4 ANC",
+    "deviceModel": "T0026",
+    "caseModel": "T0026L",
+    "firmwares": ["待实测补充（App 设备详情页截图）"]
+  },
+  "matchRules": {
+    "namePrefixes": ["HUAWEI FreeBuds SE 4 ANC", "FreeBuds SE 4"],
+    "manufacturerIds": [],
+    "serviceUuids": [],
+    "comment": "三级匹配优先级：serviceUuids > manufacturerIds > namePrefixes；M2 实测后填充厂商 ID 与 GATT 服务 UUID"
+  },
+  "pollWhenSilent": true,
+  "capabilities": {
+    "battery": { "left": true, "right": true, "case": true },
+    "ancModes": ["ultra", "general", "cozy", "transparency", "off"],
+    "ancIntensityAdjust": false,
+    "equalizer": { "presets": ["低音增强", "人声", "古典", "高音增强"], "custom": true },
+    "lowLatency": true,
+    "holdAction": { "options": ["anc-cycle", "volume", "voice-assistant", "reject-call"] },
+    "dualConnect": false,
+    "findMy": false,
+    "wearDetect": false,
+    "ldac": false
+  },
+  "notes": "能力矩阵对照 OpenFreebuds docs/devices/HUAWEI_FreeBuds_SE_4.md 与华为官网规格；M1 逐命令实测后修订。"
+}

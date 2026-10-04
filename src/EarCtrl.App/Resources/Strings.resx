@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="1" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+
+  <!-- 默认语言：简体中文（K5） -->
+  <data name="App.Title" xml:space="preserve"><value>EarCtrl Studio</value></data>
+  <data name="Nav.Dashboard" xml:space="preserve"><value>我的耳机</value></data>
+  <data name="Nav.Equalizer" xml:space="preserve"><value>音效</value></data>
+  <data name="Nav.Controls" xml:space="preserve"><value>触控</value></data>
+  <data name="Nav.Integration" xml:space="preserve"><value>集成</value></data>
+  <data name="Nav.Advanced" xml:space="preserve"><value>高级</value></data>
+  <data name="Nav.Settings" xml:space="preserve"><value>设置</value></data>
+  <data name="Nav.DevTools" xml:space="preserve"><value>调试台</value></data>
+  <data name="Settings.Theme" xml:space="preserve"><value>主题</value></data>
+  <data name="Settings.Theme.FollowSystem" xml:space="preserve"><value>跟随系统</value></data>
+  <data name="Settings.Theme.Dark" xml:space="preserve"><value>深色</value></data>
+  <data name="Settings.Theme.Light" xml:space="preserve"><value>浅色</value></data>
+  <data name="Settings.Language" xml:space="preserve"><value>语言</value></data>
+  <data name="Settings.Appearance" xml:space="preserve"><value>外观</value></data>
+  <data name="Dashboard.Placeholder" xml:space="preserve"><value>设备页占位（M3 实现）</value></data>
+  <data name="Page.UnderConstruction" xml:space="preserve"><value>本页将在后续里程碑实现。</value></data>
+</root>
