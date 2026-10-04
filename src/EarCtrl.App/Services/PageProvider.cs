@@ -13,6 +13,7 @@ public sealed class PageProvider : INavigationViewPageProvider
     {
         var t when t == typeof(DashboardPage) => new DashboardPage(),
         var t when t == typeof(SettingsPage) => new SettingsPage(),
+        var t when t == typeof(AncPlaceholder) => new AncPlaceholder(),
         var t when t == typeof(EqualizerPlaceholder) => new EqualizerPlaceholder(),
         var t when t == typeof(ControlsPlaceholder) => new ControlsPlaceholder(),
         var t when t == typeof(IntegrationPlaceholder) => new IntegrationPlaceholder(),

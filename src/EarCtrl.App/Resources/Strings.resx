@@ -35,6 +35,7 @@
   <!-- 默认语言：简体中文（K5） -->
   <data name="App.Title" xml:space="preserve"><value>EarCtrl Studio</value></data>
   <data name="Nav.Dashboard" xml:space="preserve"><value>我的耳机</value></data>
+  <data name="Nav.Anc" xml:space="preserve"><value>降噪</value></data>
   <data name="Nav.Equalizer" xml:space="preserve"><value>音效</value></data>
   <data name="Nav.Controls" xml:space="preserve"><value>触控</value></data>
   <data name="Nav.Integration" xml:space="preserve"><value>集成</value></data>

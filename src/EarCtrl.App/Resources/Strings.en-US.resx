@@ -35,6 +35,7 @@
   <!-- English skeleton (K5) -->
   <data name="App.Title" xml:space="preserve"><value>EarCtrl Studio</value></data>
   <data name="Nav.Dashboard" xml:space="preserve"><value>My earbuds</value></data>
+  <data name="Nav.Anc" xml:space="preserve"><value>Noise control</value></data>
   <data name="Nav.Equalizer" xml:space="preserve"><value>Equalizer</value></data>
   <data name="Nav.Controls" xml:space="preserve"><value>Controls</value></data>
   <data name="Nav.Integration" xml:space="preserve"><value>Integration</value></data>

@@ -20,9 +20,11 @@
         <ui:NavigationView x:Name="NavView" Grid.Row="1" IsBackButtonVisible="Collapsed"
                            PaneDisplayMode="Left" OpenPaneLength="220" IsPaneOpen="True">
             <ui:NavigationView.MenuItems>
-                <ui:NavigationViewItem Tag="Dashboard" Icon="{ui:SymbolIcon Speaker228}" TargetPageType="{x:Type pages:DashboardPage}"
+                <ui:NavigationViewItem Tag="Dashboard" Icon="{ui:SymbolIcon SurfaceEarbuds24}" TargetPageType="{x:Type pages:DashboardPage}"
                                        Content="{Binding [Nav.Dashboard], Source={x:Static services:LocSource.Instance}}" />
-                <ui:NavigationViewItem Tag="Equalizer" Icon="{ui:SymbolIcon SoundSource24}" TargetPageType="{x:Type pages:EqualizerPlaceholder}"
+                <ui:NavigationViewItem Tag="Anc" Icon="{ui:SymbolIcon HeadphonesSoundWave24}" TargetPageType="{x:Type pages:AncPlaceholder}"
+                                       Content="{Binding [Nav.Anc], Source={x:Static services:LocSource.Instance}}" />
+                <ui:NavigationViewItem Tag="Equalizer" Icon="{ui:SymbolIcon Options24}" TargetPageType="{x:Type pages:EqualizerPlaceholder}"
                                        Content="{Binding [Nav.Equalizer], Source={x:Static services:LocSource.Instance}}" />
                 <ui:NavigationViewItem Tag="Controls" Icon="{ui:SymbolIcon TapDouble24}" TargetPageType="{x:Type pages:ControlsPlaceholder}"
                                        Content="{Binding [Nav.Controls], Source={x:Static services:LocSource.Instance}}" />
