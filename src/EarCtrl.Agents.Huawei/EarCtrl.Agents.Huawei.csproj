@@ -8,7 +8,12 @@
     <Nullable>enable</Nullable>
     <RootNamespace>EarCtrl.Agents.Huawei</RootNamespace>
     <AssemblyName>EarCtrl.Agent.Huawei</AssemblyName>
+    <!-- 任务管理器显示名：Agent 统一挂在主程序「EarCtrl Studio」之下（由 Process.Start 拉起，天然父子） -->
+    <AssemblyTitle>EarCtrl Studio - Huawei Agent</AssemblyTitle>
+    <Product>EarCtrl Studio</Product>
+    <Company>EarCtrl Studio</Company>
     <!-- License: GPL-3.0-only。本项目的华为协议层转写自 OpenFreebuds (GPL-3.0)，见 LICENSE.GPL -->
+    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

@@ -11,6 +11,10 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>EarCtrl.App</RootNamespace>
     <AssemblyName>EarCtrl.App</AssemblyName>
+    <!-- 任务管理器显示名（FileDescription）：主程序 = 软件名「EarCtrl Studio」，Agent 作为其子进程 -->
+    <AssemblyTitle>EarCtrl Studio</AssemblyTitle>
+    <Product>EarCtrl Studio</Product>
+    <Company>EarCtrl Studio</Company>
     <ApplicationIcon>Resources\earctrl.ico</ApplicationIcon>
     <!-- License: MIT -->
     <Version>0.1.0</Version>
