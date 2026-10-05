@@ -42,7 +42,6 @@
   <data name="Nav.Advanced" xml:space="preserve"><value>高级</value></data>
   <data name="Nav.Settings" xml:space="preserve"><value>设置</value></data>
   <data name="Nav.DevTools" xml:space="preserve"><value>调试台</value></data>
-  <data name="Nav.Devices" xml:space="preserve"><value>设备</value></data>
 
   <!-- 仪表盘（M3） -->
   <data name="Dashboard.AddDevice" xml:space="preserve"><value>添加设备</value></data>

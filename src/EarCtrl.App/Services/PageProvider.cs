@@ -9,7 +9,13 @@ namespace EarCtrl.App.Services;
 /// </summary>
 public sealed class PageProvider : INavigationViewPageProvider
 {
-    public object? GetPage(Type pageType) => pageType switch
+    /// <summary>导航到的页面类型变化（MainWindow 据此更新设备子项蓝条 = 当前显示的是设备主页）。</summary>
+    public static event Action<Type>? PageDisplayed;
+
+    public object? GetPage(Type pageType)
+    {
+        PageDisplayed?.Invoke(pageType);
+        return pageType switch
     {
         var t when t == typeof(DashboardPage) => new DashboardPage(),
         var t when t == typeof(SettingsPage) => new SettingsPage(),
@@ -21,4 +27,5 @@ public sealed class PageProvider : INavigationViewPageProvider
         var t when t == typeof(DevToolsPlaceholder) => new DevToolsPlaceholder(),
         _ => null,
     };
+    }
 }

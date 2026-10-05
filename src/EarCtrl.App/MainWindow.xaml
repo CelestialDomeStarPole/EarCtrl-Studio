@@ -20,7 +20,8 @@
         <ui:NavigationView x:Name="NavView" Grid.Row="1" IsBackButtonVisible="Collapsed"
                            PaneDisplayMode="Left" OpenPaneLength="220" IsPaneOpen="True">
             <ui:NavigationView.MenuItems>
-                <ui:NavigationViewItem Tag="Dashboard" Icon="{ui:SymbolIcon SurfaceEarbuds24}" TargetPageType="{x:Type pages:DashboardPage}"
+                <!-- 我的耳机 = 可展开的设备集合（K10）：蓝条用内置选中态（显示设备主页时 IsActive），子项为各设备 -->
+                <ui:NavigationViewItem x:Name="MyDevicesItem" Tag="my-devices" Icon="{ui:SymbolIcon SurfaceEarbuds24}"
                                        Content="{Binding [Nav.Dashboard], Source={x:Static services:LocSource.Instance}}" />
                 <ui:NavigationViewItem Tag="Anc" Icon="{ui:SymbolIcon HeadphonesSoundWave24}" TargetPageType="{x:Type pages:AncPage}"
                                        Content="{Binding [Nav.Anc], Source={x:Static services:LocSource.Instance}}" />

@@ -42,7 +42,6 @@
   <data name="Nav.Advanced" xml:space="preserve"><value>Advanced</value></data>
   <data name="Nav.Settings" xml:space="preserve"><value>Settings</value></data>
   <data name="Nav.DevTools" xml:space="preserve"><value>DevTools</value></data>
-  <data name="Nav.Devices" xml:space="preserve"><value>Devices</value></data>
 
   <!-- Dashboard (M3) -->
   <data name="Dashboard.AddDevice" xml:space="preserve"><value>Add device</value></data>
