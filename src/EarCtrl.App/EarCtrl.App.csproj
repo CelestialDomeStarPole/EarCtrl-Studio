@@ -7,11 +7,18 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <!-- WPF-UI 4.3 无托盘控件：托盘用 WinForms NotifyIcon -->
+    <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>EarCtrl.App</RootNamespace>
     <AssemblyName>EarCtrl.App</AssemblyName>
+    <ApplicationIcon>Resources\earctrl.ico</ApplicationIcon>
     <!-- License: MIT -->
     <Version>0.1.0</Version>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="Resources\earctrl.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
@@ -19,8 +26,41 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 移除 WinForms 隐式全局 using，避免 System.Windows.Application 歧义（TrayService 用显式别名） -->
+    <Using Remove="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\EarCtrl.Core\EarCtrl.Core.csproj" />
     <ProjectReference Include="..\EarCtrl.Ipc\EarCtrl.Ipc.csproj" />
+    <!-- Agent 为独立 GPL 进程：仅用于构建顺序与输出复制，App 代码不引用其类型 -->
+    <ProjectReference Include="..\EarCtrl.Agents.Huawei\EarCtrl.Agents.Huawei.csproj"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <!-- profiles 随主程序输出（launcher 从 BaseDirectory\profiles 加载） -->
+  <ItemGroup>
+    <None Include="..\..\profiles\**\*.device.json" LinkBase="profiles\" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Agent exe 及其依赖复制到主程序输出目录（真机验收：全程无命令行） -->
+  <Target Name="CopyAgentToOutput" AfterTargets="Build">
+    <ItemGroup>
+      <AgentBin Include="..\EarCtrl.Agents.Huawei\bin\$(Configuration)\$(TargetFramework)\**\*.*"
+                Exclude="..\EarCtrl.Agents.Huawei\bin\$(Configuration)\$(TargetFramework)\ref\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(AgentBin)"
+          DestinationFiles="@(AgentBin->'$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- UseWindowsForms 注入的 System.Drawing/System.Windows.Forms 全局 using 与 WPF 类型冲突，
+       在 SDK 生成全局 using 前移除（TrayService 内用显式 using 引用 WinForms） -->
+  <Target Name="TrimGlobalUsings" BeforeTargets="GenerateGlobalUsings">
+    <ItemGroup>
+      <Using Remove="System.Drawing" />
+      <Using Remove="System.Windows.Forms" />
+    </ItemGroup>
+  </Target>
 
 </Project>

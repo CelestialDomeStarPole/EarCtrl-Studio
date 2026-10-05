@@ -22,7 +22,7 @@
             <ui:NavigationView.MenuItems>
                 <ui:NavigationViewItem Tag="Dashboard" Icon="{ui:SymbolIcon SurfaceEarbuds24}" TargetPageType="{x:Type pages:DashboardPage}"
                                        Content="{Binding [Nav.Dashboard], Source={x:Static services:LocSource.Instance}}" />
-                <ui:NavigationViewItem Tag="Anc" Icon="{ui:SymbolIcon HeadphonesSoundWave24}" TargetPageType="{x:Type pages:AncPlaceholder}"
+                <ui:NavigationViewItem Tag="Anc" Icon="{ui:SymbolIcon HeadphonesSoundWave24}" TargetPageType="{x:Type pages:AncPage}"
                                        Content="{Binding [Nav.Anc], Source={x:Static services:LocSource.Instance}}" />
                 <ui:NavigationViewItem Tag="Equalizer" Icon="{ui:SymbolIcon Options24}" TargetPageType="{x:Type pages:EqualizerPlaceholder}"
                                        Content="{Binding [Nav.Equalizer], Source={x:Static services:LocSource.Instance}}" />

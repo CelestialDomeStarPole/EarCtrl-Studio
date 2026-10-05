@@ -1,11 +1,6 @@
 namespace EarCtrl.App.Views;
 
 /// <summary>占位页具体类型：WPF-UI NavigationView 的 TargetPageType 要求唯一类型。</summary>
-public sealed class AncPlaceholder : UnderConstructionPage
-{
-    public AncPlaceholder() : base("Nav.Anc") { }
-}
-
 public sealed class EqualizerPlaceholder : UnderConstructionPage
 {
     public EqualizerPlaceholder() : base("Nav.Equalizer") { }

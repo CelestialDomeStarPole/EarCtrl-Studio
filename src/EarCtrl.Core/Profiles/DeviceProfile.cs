@@ -33,6 +33,10 @@ public sealed class DeviceProfile
 
     [JsonPropertyName("capabilities")]
     public Capabilities Capabilities { get; set; } = new();
+
+    /// <summary>来源文件路径（LoadAll 填充；进程拉起时传给 Agent --profile）。</summary>
+    [JsonIgnore]
+    public string? SourcePath { get; set; }
 }
 
 public sealed class ModelInfo
@@ -139,6 +143,7 @@ public static class DeviceProfileRegistry
                 var profile = JsonSerializer.Deserialize<DeviceProfile>(File.ReadAllText(file), JsonOptions);
                 if (profile != null && !string.IsNullOrEmpty(profile.Brand))
                 {
+                    profile.SourcePath = Path.GetFullPath(file);
                     profiles.Add(profile);
                 }
             }

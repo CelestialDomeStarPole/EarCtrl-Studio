@@ -1,0 +1,52 @@
+<ui:FluentWindow x:Class="EarCtrl.App.Views.AddDeviceWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:services="clr-namespace:EarCtrl.App.Services"
+                 Title="EarCtrl Studio"
+                 Width="560" Height="420"
+                 WindowStartupLocation="CenterOwner"
+                 ExtendsContentIntoTitleBar="True"
+                 ResizeMode="NoResize">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0" Title="{Binding [AddDevice.Title], Source={x:Static services:LocSource.Instance}}" />
+
+        <StackPanel Grid.Row="1" Margin="24,8,24,0">
+            <ui:TextBlock FontTypography="Subtitle" Margin="0,0,0,12"
+                          Text="{Binding [AddDevice.Header], Source={x:Static services:LocSource.Instance}}" />
+            <ui:TextBlock x:Name="ScanningText" Margin="0,0,0,12"
+                          Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                          Text="{Binding [AddDevice.Scanning], Source={x:Static services:LocSource.Instance}}" />
+            <ui:TextBlock x:Name="NoneText" Margin="0,0,0,12" Visibility="Collapsed"
+                          Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                          Text="{Binding [AddDevice.None], Source={x:Static services:LocSource.Instance}}" />
+            <ListView x:Name="DeviceList" MinHeight="180" SelectionMode="Single"
+                      SelectionChanged="OnSelectionChanged" MouseDoubleClick="OnAddClick">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="{Binding [AddDevice.Column.Name], Source={x:Static services:LocSource.Instance}}"
+                                        Width="240" DisplayMemberBinding="{Binding Name}" />
+                        <GridViewColumn Header="{Binding [AddDevice.Column.Model], Source={x:Static services:LocSource.Instance}}"
+                                        Width="240" DisplayMemberBinding="{Binding Model}" />
+                    </GridView>
+                </ListView.View>
+            </ListView>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Margin="24,16,24,20" Orientation="Horizontal" HorizontalAlignment="Right">
+            <ui:Button x:Name="AddButton" Appearance="Primary" MinWidth="96" Margin="0,0,8,0" IsEnabled="False"
+                       Content="{Binding [AddDevice.Add], Source={x:Static services:LocSource.Instance}}"
+                       Click="OnAddClick" />
+            <ui:Button MinWidth="96"
+                       Content="{Binding [AddDevice.Cancel], Source={x:Static services:LocSource.Instance}}"
+                       Click="OnCancelClick" />
+        </StackPanel>
+    </Grid>
+</ui:FluentWindow>

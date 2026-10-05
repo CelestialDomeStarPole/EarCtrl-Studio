@@ -42,12 +42,63 @@
   <data name="Nav.Advanced" xml:space="preserve"><value>高级</value></data>
   <data name="Nav.Settings" xml:space="preserve"><value>设置</value></data>
   <data name="Nav.DevTools" xml:space="preserve"><value>调试台</value></data>
+  <data name="Nav.Devices" xml:space="preserve"><value>设备</value></data>
+
+  <!-- 仪表盘（M3） -->
+  <data name="Dashboard.AddDevice" xml:space="preserve"><value>添加设备</value></data>
+  <data name="Dashboard.NoDevice" xml:space="preserve"><value>尚未添加设备，点击右上角「添加设备」开始。</value></data>
+  <data name="Dashboard.Connect" xml:space="preserve"><value>连接</value></data>
+  <data name="Dashboard.Disconnect" xml:space="preserve"><value>断开</value></data>
+  <data name="Dashboard.CurrentDevice" xml:space="preserve"><value>当前设备：</value></data>
+
+  <!-- 电量（M3） -->
+  <data name="Battery.Left" xml:space="preserve"><value>左耳</value></data>
+  <data name="Battery.Right" xml:space="preserve"><value>右耳</value></data>
+  <data name="Battery.Case" xml:space="preserve"><value>充电盒</value></data>
+  <data name="Battery.Charging" xml:space="preserve"><value>充电中</value></data>
+
+  <!-- 连接状态（M3） -->
+  <data name="Status.Connected" xml:space="preserve"><value>已连接</value></data>
+  <data name="Status.Connecting" xml:space="preserve"><value>连接中…</value></data>
+  <data name="Status.Disconnected" xml:space="preserve"><value>未连接</value></data>
+  <data name="Status.Reconnecting" xml:space="preserve"><value>重连中…</value></data>
+  <data name="Status.Failed" xml:space="preserve"><value>连接失败</value></data>
+  <data name="Status.Idle" xml:space="preserve"><value>待机（未发现设备）</value></data>
+  <data name="Status.Detected" xml:space="preserve"><value>已发现设备</value></data>
+  <data name="Status.AgentStarting" xml:space="preserve"><value>Agent 启动中…</value></data>
+  <data name="Status.Ready" xml:space="preserve"><value>已就绪</value></data>
+  <data name="Status.Cooldown" xml:space="preserve"><value>冷却中…</value></data>
+  <data name="Status.Disabled" xml:space="preserve"><value>已停用</value></data>
+  <data name="Status.PairedNotFound" xml:space="preserve"><value>未找到已配对的匹配设备，请先在系统蓝牙设置中配对。</value></data>
+
+  <!-- 降噪五态（M3，K11） -->
+  <data name="Anc.Ultra" xml:space="preserve"><value>深度</value></data>
+  <data name="Anc.General" xml:space="preserve"><value>均衡</value></data>
+  <data name="Anc.Cozy" xml:space="preserve"><value>轻度</value></data>
+  <data name="Anc.Transparency" xml:space="preserve"><value>透传</value></data>
+  <data name="Anc.Off" xml:space="preserve"><value>关闭</value></data>
+  <data name="Anc.NotReady" xml:space="preserve"><value>设备未连接，连接后可切换降噪模式。</value></data>
+
+  <!-- 托盘（M3） -->
+  <data name="Tray.Anc" xml:space="preserve"><value>降噪</value></data>
+  <data name="Tray.Show" xml:space="preserve"><value>显示主窗口</value></data>
+  <data name="Tray.Exit" xml:space="preserve"><value>退出</value></data>
+
+  <!-- 添加设备（M3） -->
+  <data name="AddDevice.Title" xml:space="preserve"><value>添加设备</value></data>
+  <data name="AddDevice.Header" xml:space="preserve"><value>选择要添加的耳机</value></data>
+  <data name="AddDevice.Scanning" xml:space="preserve"><value>正在扫描已配对设备…</value></data>
+  <data name="AddDevice.None" xml:space="preserve"><value>未找到可添加的耳机。请确认耳机已在系统蓝牙设置中配对。</value></data>
+  <data name="AddDevice.Column.Name" xml:space="preserve"><value>设备名称</value></data>
+  <data name="AddDevice.Column.Model" xml:space="preserve"><value>型号</value></data>
+  <data name="AddDevice.Add" xml:space="preserve"><value>添加</value></data>
+  <data name="AddDevice.Cancel" xml:space="preserve"><value>取消</value></data>
+
   <data name="Settings.Theme" xml:space="preserve"><value>主题</value></data>
   <data name="Settings.Theme.FollowSystem" xml:space="preserve"><value>跟随系统</value></data>
   <data name="Settings.Theme.Dark" xml:space="preserve"><value>深色</value></data>
   <data name="Settings.Theme.Light" xml:space="preserve"><value>浅色</value></data>
   <data name="Settings.Language" xml:space="preserve"><value>语言</value></data>
   <data name="Settings.Appearance" xml:space="preserve"><value>外观</value></data>
-  <data name="Dashboard.Placeholder" xml:space="preserve"><value>设备页占位（M3 实现）</value></data>
   <data name="Page.UnderConstruction" xml:space="preserve"><value>本页将在后续里程碑实现。</value></data>
 </root>

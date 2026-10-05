@@ -27,12 +27,46 @@ public sealed class NamedPipeServer : IAsyncDisposable
 
     public bool HasClient { get; private set; }
 
+    private bool _started;
+
     public NamedPipeServer(string pipeName) => _pipeName = pipeName;
 
+    /// <summary>
+    /// 启动接受循环。返回 false = 同名管道已被占用（另一 Agent 实例在跑），调用方应退出（单实例幂等）。
+    /// 首个 ServerStream 同步创建，占用检测不留竞态窗口。
+    /// </summary>
+    public bool TryStart()
+    {
+        if (_started) return true;
+        try
+        {
+            _pipe = CreateServerStream();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            return false; // 管道名已存在实例
+        }
+        _started = true;
+        _acceptLoop = Task.Run(() => AcceptLoop(_cts.Token));
+        return true;
+    }
+
+    /// <summary>幂等启动（TryStart 已启动时为 no-op）。</summary>
     public void Start()
     {
-        _acceptLoop = Task.Run(() => AcceptLoop(_cts.Token));
+        if (_started) return;
+        if (!TryStart())
+        {
+            throw new IOException($"管道 {_pipeName} 已被占用（另一实例在运行）");
+        }
     }
+
+    private NamedPipeServerStream CreateServerStream() =>
+        new(_pipeName,
+            PipeDirection.InOut,
+            maxNumberOfServerInstances: 1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
 
     private async Task AcceptLoop(CancellationToken ct)
     {
@@ -40,13 +74,7 @@ public sealed class NamedPipeServer : IAsyncDisposable
         {
             try
             {
-                _pipe = new NamedPipeServerStream(
-                    _pipeName,
-                    PipeDirection.InOut,
-                    maxNumberOfServerInstances: 1,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-
+                _pipe ??= CreateServerStream();
                 await _pipe.WaitForConnectionAsync(ct);
 
                 _reader = new StreamReader(_pipe, Encoding.UTF8);
@@ -65,6 +93,11 @@ public sealed class NamedPipeServer : IAsyncDisposable
             }
             catch (ObjectDisposedException)
             {
+                return;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // 后续轮重建实例时被占（理论上只有唯一实例会到这）：终止接受循环防死循环
                 return;
             }
             finally

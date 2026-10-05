@@ -79,6 +79,8 @@ public sealed class AgentSupervisor : IAsyncDisposable
 
     public void OnDeviceAppeared(string deviceName, ulong address)
     {
+        // 名称必须命中本 Profile（多品牌并行时 detector 会广播给所有 supervisor）
+        if (DeviceProfileRegistry.MatchByName([_profile], deviceName) is null) return;
         lock (_gate) { _devicePresent = true; _deviceAddress = address; }
         if (!Enabled) { State = AgentState.Disabled; return; }
         if (State is AgentState.Ready or AgentState.AgentStarting or AgentState.Connecting) return;
@@ -97,6 +99,7 @@ public sealed class AgentSupervisor : IAsyncDisposable
 
     public void OnDeviceDisappeared(string deviceName)
     {
+        if (DeviceProfileRegistry.MatchByName([_profile], deviceName) is null) return;
         lock (_gate) { _devicePresent = false; }
         // A-6：宽限期内 Agent 继续服务，超时才 shutdown
         _awayTimer?.Dispose();
@@ -137,6 +140,44 @@ public sealed class AgentSupervisor : IAsyncDisposable
         }
     }
 
+    // ---- UI 动作（§3.1-C 手动控制） ----
+
+    public bool IsReady => State == AgentState.Ready;
+
+    /// <summary>UI 命令转发（setAncMode/setEq/…）；Agent 未连接时抛异常。</summary>
+    public async Task<IpcResponse> SendAsync(string method, object? parameters = null, int timeoutMs = 8000)
+    {
+        var session = _session;
+        if (session is not { Connected: true })
+        {
+            throw new InvalidOperationException("Agent 未连接");
+        }
+        return await session.SendRequestAsync(method, parameters, timeoutMs);
+    }
+
+    /// <summary>C-1 手动连接兜底：探测未命中时用已知地址直接拉起 + connect。</summary>
+    public Task ManualConnectAsync(ulong address)
+    {
+        lock (_gate) { _devicePresent = true; _deviceAddress = address; }
+        if (State is AgentState.Ready or AgentState.Connecting or AgentState.AgentStarting)
+        {
+            return Task.CompletedTask;
+        }
+        _awayTimer?.Dispose();
+        _awayTimer = null;
+        State = AgentState.Detected;
+        return LaunchAsync();
+    }
+
+    /// <summary>C-2 手动断开：断协议链路但保留 Agent 进程。</summary>
+    public async Task ManualDisconnectAsync()
+    {
+        if (_session is { Connected: true })
+        {
+            try { await _session.SendRequestAsync("disconnect", null, 5000); } catch { /* 断开失败不阻塞 */ }
+        }
+    }
+
     // ---- 拉起与握手 ----
 
     private async Task LaunchAsync()
@@ -166,6 +207,16 @@ public sealed class AgentSupervisor : IAsyncDisposable
                 throw new InvalidOperationException($"Agent 握手失败: {hello.Error?.Message}");
             }
 
+            // §3.1-B：握手成功后用探测到的地址建立协议连接（connect 15s：RFCOMM 建链较慢）
+            var connectParams = _deviceAddress is { } addr
+                ? new { deviceAddress = addr.ToString("X12") }
+                : null;
+            var connect = await _session.SendRequestAsync("connect", connectParams, 15000);
+            if (!connect.Ok)
+            {
+                throw new InvalidOperationException($"Agent 连接失败: {connect.Error?.Message}");
+            }
+
             StartHealthMonitor();
             State = AgentState.Ready;
         }
@@ -173,7 +224,13 @@ public sealed class AgentSupervisor : IAsyncDisposable
         {
             await CleanupSessionAsync();
             RecordRestart();
-            if (State != AgentState.Disabled) State = AgentState.Failed;
+            if (State != AgentState.Disabled)
+            {
+                // connect 阶段失败（如 SPP 信道被占/耳机正被手机使用）不卡死 Failed：
+                // 与 L1 同路径退避重试（1/2/5/10/30s），窗口内 ≥3 次进熔断
+                State = AgentState.Reconnecting;
+                _ = Task.Run(() => ScheduleRelaunch());
+            }
             Debug.WriteLine($"[{Brand}] Agent 启动失败: {ex.Message}");
         }
     }

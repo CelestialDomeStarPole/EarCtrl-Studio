@@ -256,24 +256,37 @@ static async Task<int> RunSelfTestAsync(AgentOptions options)
 /// <summary>M2 服务模式：单实例幂等 → 起 NamedPipe 服务 → AgentRpc 接管；孤儿/关闭信号驱动退出。</summary>
 static async Task<int> RunServiceModeAsync(AgentOptions options)
 {
-    // 单实例幂等（§3.1-B）：管道已存在说明 Agent 在跑，直接退出（复用语义）
-    try
+    // 单实例幂等（§3.1-B）：管道已存在说明 Agent 在跑，直接退出（复用语义）。
+    // 探测两次：消除「旧实例尚未 Start 管道」的拉起时序竞态。
+    for (var attempt = 0; attempt < 2; attempt++)
     {
-        var probe = new NamedPipeClient(options.PipeName!);
-        await using (probe.ConfigureAwait(false))
+        try
         {
-            await probe.ConnectAsync();
+            var probe = new NamedPipeClient(options.PipeName!);
+            await using (probe.ConfigureAwait(false))
+            {
+                await probe.ConnectAsync();
+            }
+            Console.Out.WriteLine($"[service] {options.PipeName} 已有实例在运行，本进程退出（复用现有实例）");
+            return 0;
         }
-        Console.Out.WriteLine($"[service] {options.PipeName} 已有实例在运行，本进程退出（复用现有实例）");
-        return 0;
-    }
-    catch
-    {
-        // 连不上 = 无既有实例，继续
+        catch
+        {
+            if (attempt == 0)
+            {
+                await Task.Delay(500);
+            }
+        }
     }
 
     var link = new HuaweiSppClient();
     var server = new NamedPipeServer(options.PipeName!);
+    // TryStart 同步创建管道实例：被占（竞态期另一实例抢先）则本进程退出，绝不产生双实例
+    if (!server.TryStart())
+    {
+        Console.Out.WriteLine($"[service] {options.PipeName} 已有实例在运行，本进程退出（复用现有实例）");
+        return 0;
+    }
     var rpc = new AgentRpc(link, server, new AgentRpcOptions());
     rpc.Start();
     Console.Out.WriteLine($"[service] IPC 服务端就绪: {options.PipeName}");

@@ -42,12 +42,63 @@
   <data name="Nav.Advanced" xml:space="preserve"><value>Advanced</value></data>
   <data name="Nav.Settings" xml:space="preserve"><value>Settings</value></data>
   <data name="Nav.DevTools" xml:space="preserve"><value>DevTools</value></data>
+  <data name="Nav.Devices" xml:space="preserve"><value>Devices</value></data>
+
+  <!-- Dashboard (M3) -->
+  <data name="Dashboard.AddDevice" xml:space="preserve"><value>Add device</value></data>
+  <data name="Dashboard.NoDevice" xml:space="preserve"><value>No devices yet. Click "Add device" in the top-right corner to start.</value></data>
+  <data name="Dashboard.Connect" xml:space="preserve"><value>Connect</value></data>
+  <data name="Dashboard.Disconnect" xml:space="preserve"><value>Disconnect</value></data>
+  <data name="Dashboard.CurrentDevice" xml:space="preserve"><value>Current device: </value></data>
+
+  <!-- Battery (M3) -->
+  <data name="Battery.Left" xml:space="preserve"><value>Left</value></data>
+  <data name="Battery.Right" xml:space="preserve"><value>Right</value></data>
+  <data name="Battery.Case" xml:space="preserve"><value>Case</value></data>
+  <data name="Battery.Charging" xml:space="preserve"><value>Charging</value></data>
+
+  <!-- Connection status (M3) -->
+  <data name="Status.Connected" xml:space="preserve"><value>Connected</value></data>
+  <data name="Status.Connecting" xml:space="preserve"><value>Connecting...</value></data>
+  <data name="Status.Disconnected" xml:space="preserve"><value>Disconnected</value></data>
+  <data name="Status.Reconnecting" xml:space="preserve"><value>Reconnecting...</value></data>
+  <data name="Status.Failed" xml:space="preserve"><value>Connection failed</value></data>
+  <data name="Status.Idle" xml:space="preserve"><value>Idle (device not found)</value></data>
+  <data name="Status.Detected" xml:space="preserve"><value>Device detected</value></data>
+  <data name="Status.AgentStarting" xml:space="preserve"><value>Starting agent...</value></data>
+  <data name="Status.Ready" xml:space="preserve"><value>Ready</value></data>
+  <data name="Status.Cooldown" xml:space="preserve"><value>Cooling down...</value></data>
+  <data name="Status.Disabled" xml:space="preserve"><value>Disabled</value></data>
+  <data name="Status.PairedNotFound" xml:space="preserve"><value>No matching paired device found. Please pair it in Windows Bluetooth settings first.</value></data>
+
+  <!-- ANC five states (M3, K11) -->
+  <data name="Anc.Ultra" xml:space="preserve"><value>Ultra</value></data>
+  <data name="Anc.General" xml:space="preserve"><value>Balanced</value></data>
+  <data name="Anc.Cozy" xml:space="preserve"><value>Comfort</value></data>
+  <data name="Anc.Transparency" xml:space="preserve"><value>Transparency</value></data>
+  <data name="Anc.Off" xml:space="preserve"><value>Off</value></data>
+  <data name="Anc.NotReady" xml:space="preserve"><value>Device not connected. Connect to switch noise control modes.</value></data>
+
+  <!-- Tray (M3) -->
+  <data name="Tray.Anc" xml:space="preserve"><value>Noise control</value></data>
+  <data name="Tray.Show" xml:space="preserve"><value>Show main window</value></data>
+  <data name="Tray.Exit" xml:space="preserve"><value>Exit</value></data>
+
+  <!-- Add device (M3) -->
+  <data name="AddDevice.Title" xml:space="preserve"><value>Add device</value></data>
+  <data name="AddDevice.Header" xml:space="preserve"><value>Select earbuds to add</value></data>
+  <data name="AddDevice.Scanning" xml:space="preserve"><value>Scanning paired devices...</value></data>
+  <data name="AddDevice.None" xml:space="preserve"><value>No addable earbuds found. Make sure they are paired in Windows Bluetooth settings.</value></data>
+  <data name="AddDevice.Column.Name" xml:space="preserve"><value>Name</value></data>
+  <data name="AddDevice.Column.Model" xml:space="preserve"><value>Model</value></data>
+  <data name="AddDevice.Add" xml:space="preserve"><value>Add</value></data>
+  <data name="AddDevice.Cancel" xml:space="preserve"><value>Cancel</value></data>
+
   <data name="Settings.Theme" xml:space="preserve"><value>Theme</value></data>
   <data name="Settings.Theme.FollowSystem" xml:space="preserve"><value>Follow system</value></data>
   <data name="Settings.Theme.Dark" xml:space="preserve"><value>Dark</value></data>
   <data name="Settings.Theme.Light" xml:space="preserve"><value>Light</value></data>
   <data name="Settings.Language" xml:space="preserve"><value>Language</value></data>
   <data name="Settings.Appearance" xml:space="preserve"><value>Appearance</value></data>
-  <data name="Dashboard.Placeholder" xml:space="preserve"><value>Dashboard placeholder (implemented in M3)</value></data>
   <data name="Page.UnderConstruction" xml:space="preserve"><value>This page will be implemented in a later milestone.</value></data>
 </root>

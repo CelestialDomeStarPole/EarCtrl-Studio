@@ -30,6 +30,7 @@ public sealed class AgentRpc : IAsyncDisposable
     private Task? _heartbeatLoop;
     private Task? _selfHealLoop;
     private Timer? _orphanTimer;
+    private Timer? _batteryPollTimer;
     private readonly TaskCompletionSource _shutdownTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public string ProtocolVersion => "1";
@@ -48,7 +49,7 @@ public sealed class AgentRpc : IAsyncDisposable
         _link.RawFrame += OnRawFrame;
         _link.OnNotify(Cmd.BatteryNotify, OnBatteryFrame);
         _link.OnNotify(Cmd.AncRead, OnAncFrame);       // 写确认帧 2B2A
-        _link.OnNotify(Cmd.AncChangeEvent, OnAncFrame); // 耳机按键事件 2B03（param1=[level,mode]）
+        _link.OnNotify(Cmd.AncChangeEvent, OnAncChangeEventAsync); // 耳机按键事件 2B03（param1=[level,mode]）
     }
 
     /// <summary>优雅退出信号（Program await 它后返回退出码 0）。</summary>
@@ -92,6 +93,11 @@ public sealed class AgentRpc : IAsyncDisposable
                 return null;
 
             case "connect":
+                // 幂等：链路已在（如主程序重发 connect）直接回快照，避免重复建链破坏收包循环
+                if (_link.Started)
+                {
+                    return StateSnapshot();
+                }
                 await ConnectAsync(ReadAddress(request.Params));
                 return StateSnapshot();
 
@@ -147,6 +153,7 @@ public sealed class AgentRpc : IAsyncDisposable
         {
             await _link.StartAsync(addr, _options.RfcommChannel);
             PublishConnection("connected");
+            StartBatteryPoll();
             _selfHealLoop ??= Task.Run(() => SelfHealLoop(_cts.Token));
         }
         catch (Exception ex)
@@ -290,6 +297,46 @@ public sealed class AgentRpc : IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    private async Task OnAncChangeEventAsync(HuaweiSppPackage pkg)
+    {
+        // 协议笔记 5.1-4：OpenFreebuds 收到 2B03 按键事件后回 2B2A param1="" 确认，不回可能影响后续事件推送
+        try
+        {
+            await _link.SendPackageAsync(
+                HuaweiSppPackage.ChangeRequestNoWait(Cmd.AncRead, (1, [])));
+        }
+        catch
+        {
+            // 链路断开场景忽略（L3 自愈接管）
+        }
+        if (HuaweiCommands.ParseAnc(pkg) is { } state)
+        {
+            _ancMode = (int)state.Mode;
+            _ancLevel = (int)state.Level;
+            PublishState();
+        }
+    }
+
+    // ---- 电量轮询兜底（协议笔记 5.1-1：0127 仅连接时推一次，发 0108 可触发再推） ----
+
+    private void StartBatteryPoll()
+    {
+        _batteryPollTimer?.Dispose();
+        _batteryPollTimer = new Timer(async _ =>
+        {
+            try
+            {
+                if (!_link.Started) return;
+                // 读请求无直接响应，但会触发耳机再推一帧 0127；等 2s 内的电量帧即可
+                await _link.SendPackageAsync(HuaweiCommands.BatteryReadRequest(), 2000, Cmd.BatteryNotify);
+            }
+            catch
+            {
+                // 链路断开/冲突：忽略，下轮再试
+            }
+        }, null, _options.BatteryPollMs, _options.BatteryPollMs);
+    }
+
     private void OnRawFrame(string dir, byte[] bytes)
     {
         if (!_rawSubscribed) return;
@@ -381,6 +428,7 @@ public sealed class AgentRpc : IAsyncDisposable
     private async Task ShutdownAsync()
     {
         _cts.Cancel();
+        _batteryPollTimer?.Dispose();
         await _link.StopAsync();
         _shutdownTcs.TrySetResult();
     }
@@ -389,6 +437,7 @@ public sealed class AgentRpc : IAsyncDisposable
     {
         _cts.Cancel();
         _orphanTimer?.Dispose();
+        _batteryPollTimer?.Dispose();
         await _link.StopAsync();
         await _server.DisposeAsync();
         _cts.Dispose();
@@ -425,4 +474,6 @@ public sealed record AgentRpcOptions
     public int HeartbeatIntervalMs { get; init; } = 30_000;
     public int OrphanGraceMs { get; init; } = 30_000;
     public int RfcommChannel { get; init; } = 1;
+    /// <summary>电量轮询兜底周期（发 0108 触发 0127 推送；协议笔记 5.1-1）。</summary>
+    public int BatteryPollMs { get; init; } = 60_000;
 }

@@ -13,6 +13,9 @@ public sealed class AppConfig
     public string Language { get; set; } = "zh-CN";       // zh-CN | en-US
     public bool DevToolsVisible { get; set; } = false;
 
+    // 已添加设备（brand 列表，K10 设备区；默认含随附华为 Profile，首启动即用）
+    public List<string> AddedDevices { get; set; } = ["huawei"];
+
     // Agent 生命周期常量（秒；§3.1 常量表，允许覆盖）
     public int MatchDebounceMs { get; set; } = 1500;      // 广播匹配去抖
     public int SilentPollIntervalSec { get; set; } = 10;  // 连接后广播停播时的兜底轮询

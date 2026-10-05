@@ -6,12 +6,77 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="28,20,28,28" MaxWidth="860" HorizontalAlignment="Left">
-            <!-- 设备状态大卡片（M3 实现电量与五态控件；当前为占位） -->
-            <ui:Card>
+            <!-- 页头：标题 + 添加设备 -->
+            <Grid Margin="0,0,0,16">
+                <ui:TextBlock FontTypography="Title"
+                              Text="{Binding [Nav.Dashboard], Source={x:Static services:LocSource.Instance}}" />
+                <ui:Button HorizontalAlignment="Right" Appearance="Primary" Icon="{ui:SymbolIcon Add24}"
+                           Content="{Binding [Dashboard.AddDevice], Source={x:Static services:LocSource.Instance}}"
+                           Click="OnAddDeviceClick" />
+            </Grid>
+
+            <!-- 未添加设备 -->
+            <ui:Card x:Name="NoDeviceCard">
+                <ui:TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                              Text="{Binding [Dashboard.NoDevice], Source={x:Static services:LocSource.Instance}}" />
+            </ui:Card>
+
+            <!-- 设备状态大卡片（仿 GalaxyBudsClient Dashboard：设备图示 + 左右/盒电量） -->
+            <ui:Card x:Name="DeviceCard" Visibility="Collapsed">
                 <StackPanel>
-                    <ui:TextBlock FontTypography="Subtitle" Text="{Binding [Nav.Dashboard], Source={x:Static services:LocSource.Instance}}" />
-                    <ui:TextBlock Margin="0,8,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                  Text="{Binding [Dashboard.Placeholder], Source={x:Static services:LocSource.Instance}}" />
+                    <Grid>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="SurfaceEarbuds24" FontSize="30" VerticalAlignment="Center" />
+                            <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                <ui:TextBlock x:Name="DeviceNameText" FontTypography="Subtitle" Text="--" />
+                                <ui:TextBlock x:Name="ModelText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <ui:Button x:Name="ConnectButton" Appearance="Primary" Margin="0,0,8,0"
+                                       Content="{Binding [Dashboard.Connect], Source={x:Static services:LocSource.Instance}}"
+                                       Click="OnConnectClick" />
+                            <ui:Button x:Name="DisconnectButton"
+                                       Content="{Binding [Dashboard.Disconnect], Source={x:Static services:LocSource.Instance}}"
+                                       Click="OnDisconnectClick" />
+                        </StackPanel>
+                    </Grid>
+
+                    <ui:TextBlock x:Name="StatusText" Margin="0,12,0,0"
+                                  Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="--" />
+
+                    <!-- 电量三联：左耳 / 右耳 / 充电盒 -->
+                    <Grid Margin="0,20,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                            <ui:TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                          Text="{Binding [Battery.Left], Source={x:Static services:LocSource.Instance}}" />
+                            <TextBlock x:Name="LeftPct" FontSize="30" FontWeight="SemiBold" Text="--%" />
+                            <ProgressBar x:Name="LeftBar" Height="6" Maximum="100" Margin="0,6,0,0" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                            <ui:TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                          Text="{Binding [Battery.Right], Source={x:Static services:LocSource.Instance}}" />
+                            <TextBlock x:Name="RightPct" FontSize="30" FontWeight="SemiBold" Text="--%" />
+                            <ProgressBar x:Name="RightBar" Height="6" Maximum="100" Margin="0,6,0,0" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <ui:TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                          Text="{Binding [Battery.Case], Source={x:Static services:LocSource.Instance}}" />
+                            <TextBlock x:Name="CasePct" FontSize="30" FontWeight="SemiBold" Text="--%" />
+                            <ProgressBar x:Name="CaseBar" Height="6" Maximum="100" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel x:Name="ChargingPanel" Orientation="Horizontal" Margin="0,10,0,0" Visibility="Collapsed">
+                        <ui:SymbolIcon Symbol="BatteryCharge24" />
+                        <ui:TextBlock Margin="6,0,0,0"
+                                      Text="{Binding [Battery.Charging], Source={x:Static services:LocSource.Instance}}" />
+                    </StackPanel>
                 </StackPanel>
             </ui:Card>
         </StackPanel>
