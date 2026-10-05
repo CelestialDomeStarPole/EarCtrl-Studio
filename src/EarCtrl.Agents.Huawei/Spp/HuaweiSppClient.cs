@@ -10,7 +10,24 @@ using EarCtrl.Agents.Huawei.Lpv2;
 
 namespace EarCtrl.Agents.Huawei;
 
-public sealed class HuaweiSppClient : IDisposable
+/// <summary>华为 SPP 链路抽象（可注入 fake 做单测）。</summary>
+public interface ISppLink : IDisposable
+{
+    bool Started { get; }
+    Task StartAsync(ulong address, int channel = 1);
+    Task StopAsync();
+    Task<HuaweiSppPackage?> SendPackageAsync(HuaweiSppPackage pkg, int timeoutMs = 5000, params byte[][] acceptIds);
+    void OnNotify(byte[] commandId, Func<HuaweiSppPackage, Task> handler);
+
+    event Action<string>? LogDebug;
+    event Action<string>? LogWarn;
+    /// <summary>链路断开（L3 自愈触发信号）。</summary>
+    event Action? LinkLost;
+    /// <summary>原始帧（调试台 rawPacket 用）：dir = "TX"/"RX"。</summary>
+    event Action<string, byte[]>? RawFrame;
+}
+
+public sealed class HuaweiSppClient : ISppLink
 {
     private readonly Spp.RfcommTransport _transport = new();
     private readonly ConcurrentDictionary<string, TaskCompletionSource<HuaweiSppPackage>> _pending = new();
@@ -20,6 +37,8 @@ public sealed class HuaweiSppClient : IDisposable
 
     public event Action<string>? LogDebug;
     public event Action<string>? LogWarn;
+    public event Action? LinkLost;
+    public event Action<string, byte[]>? RawFrame;
 
     public bool Started { get; private set; }
 
@@ -94,6 +113,7 @@ public sealed class HuaweiSppClient : IDisposable
         if (!Started) throw new InvalidOperationException("连接未建立，无法发送");
         var bytes = pkg.ToBytes();
         LogDebug?.Invoke($"TX {pkg}");
+        RawFrame?.Invoke("TX", bytes);
         await _transport.TransportStream.WriteAsync(bytes);
     }
 
@@ -111,6 +131,7 @@ public sealed class HuaweiSppClient : IDisposable
                 if (!await ReadExactAsync(stream, buffer.AsMemory(0, 4), ct))
                 {
                     LogWarn?.Invoke("连接已关闭（读到空数据）");
+                    LinkLost?.Invoke();
                     return;
                 }
                 if (buffer[0] != HuaweiSppPackage.HeaderByte) continue; // 丢弃非帧头
@@ -126,6 +147,7 @@ public sealed class HuaweiSppClient : IDisposable
                 {
                     pkg = HuaweiSppPackage.FromBytes(raw);
                     LogDebug?.Invoke($"RX {pkg}");
+                    RawFrame?.Invoke("RX", raw);
                 }
                 catch (Exception)
                 {
@@ -140,6 +162,11 @@ public sealed class HuaweiSppClient : IDisposable
         catch (IOException ex)
         {
             LogWarn?.Invoke($"连接中断: {ex.Message}");
+            LinkLost?.Invoke();
+        }
+        finally
+        {
+            Started = false;
         }
     }
 

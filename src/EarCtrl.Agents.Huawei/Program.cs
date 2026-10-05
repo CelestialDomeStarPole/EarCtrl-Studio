@@ -14,12 +14,25 @@ using System.Globalization;
 using EarCtrl.Agents.Huawei;
 using EarCtrl.Agents.Huawei.Commands;
 using EarCtrl.Agents.Huawei.Lpv2;
+using EarCtrl.Ipc.NamedPipe;
 
 var options = AgentOptions.Parse(args);
-if (options.Command is null || (options.Address is null && options.Command != "list"))
+
+// 服务模式：主程序以 --pipe 拉起，进入 IPC 服务；否则进入 PoC CLI
+if (options.PipeName is not null)
+{
+    return await RunServiceModeAsync(options);
+}
+
+if (options.Command is null || (options.Address is null && options.Command is not ("list" or "selftest")))
 {
     PrintUsage();
     return 2;
+}
+
+if (options.Command == "selftest")
+{
+    return await RunSelfTestAsync(options);
 }
 
 if (options.Command == "list")
@@ -149,7 +162,11 @@ static ulong ParseAddress(string text) =>
 static void PrintUsage()
 {
     Console.Out.WriteLine("""
-        用法: EarCtrl.Agent.Huawei [--address <AA:BB:CC:DD:EE:FF>] <命令> [--verbose]
+        用法:
+          服务模式（由 EarCtrl.App 拉起）:
+            EarCtrl.Agent.Huawei --pipe <pipeName> [--profile <path>] [--log <level>]
+          PoC CLI:
+            EarCtrl.Agent.Huawei [--address <AA:BB:CC:DD:EE:FF>] <命令> [--verbose]
         命令:
           list                           列出已配对蓝牙设备（含地址与连接状态）
           battery                        读电量
@@ -157,4 +174,112 @@ static void PrintUsage()
           eq [set <preset>]              读/设 EQ；preset=default|hardbass|treble|voices
           lowlatency [on|off]            读/设低延迟
         """);
+}
+
+/// <summary>
+/// M2 真机 IPC 闭环冒烟：自起 IPC 服务 + 客户端回环，走完整契约
+/// hello → connect(真机) → getState(电量推送) → setAncMode → shutdown。
+/// 用法: EarCtrl.Agent.Huawei selftest [--address AA:BB:CC:DD:EE:FF]
+/// </summary>
+static async Task<int> RunSelfTestAsync(AgentOptions options)
+{
+    var pipeName = $"earctrl.selftest.{Guid.NewGuid():N}";
+    var link = new HuaweiSppClient();
+    var server = new NamedPipeServer(pipeName);
+    var rpc = new AgentRpc(link, server, new AgentRpcOptions());
+    rpc.Start();
+    await Task.Delay(300);
+
+    var client = new NamedPipeClient(pipeName);
+    var connectionEvents = new List<string>();
+    client.EventReceived += e =>
+    {
+        if (e.Event == "connectionChanged")
+        {
+            var status = e.Payload?.GetProperty("status").GetString() ?? "?";
+            connectionEvents.Add(status);
+            Console.Out.WriteLine($"[event] connectionChanged: {status}");
+        }
+        else if (e.Event == "stateChanged")
+        {
+            Console.Out.WriteLine($"[event] stateChanged: {e.Payload?.ToString()}");
+        }
+    };
+
+    try
+    {
+        await client.ConnectAsync();
+        var hello = await client.SendRequestAsync("hello", new { version = "1" });
+        Console.Out.WriteLine($"hello: ok={hello.Ok}");
+
+        if (options.Address is not null)
+        {
+            var address = ulong.Parse(
+                options.Address.Replace(":", ""),
+                System.Globalization.NumberStyles.HexNumber,
+                CultureInfo.InvariantCulture);
+            var connect = await client.SendRequestAsync("connect", new { deviceAddress = options.Address });
+            Console.Out.WriteLine($"connect: ok={connect.Ok} 链路={connect.Result?.GetProperty("connection").GetString()}");
+            await Task.Delay(500); // 等 0127 电量推送
+
+            var anc = await client.SendRequestAsync("setAncMode", new { mode = "off" });
+            Console.Out.WriteLine($"setAncMode(off): ok={anc.Ok} anc={anc.Result?.GetProperty("anc")}");
+        }
+        else
+        {
+            Console.Out.WriteLine("未提供 --address，跳过真机连接（IPC 闭环已验证）");
+        }
+
+        var state = await client.SendRequestAsync("getState");
+        Console.Out.WriteLine($"getState: {state.Result}");
+
+        var shutdown = await client.SendRequestAsync("shutdown");
+        Console.Out.WriteLine($"shutdown: ok={shutdown.Ok}");
+
+        await rpc.ShutdownSignal.WaitAsync(TimeSpan.FromSeconds(3));
+        Console.Out.WriteLine($"connectionEvents: [{string.Join(" → ", connectionEvents)}]");
+        Console.Out.WriteLine("SELFTEST PASS");
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"SELFTEST FAIL: {ex.Message}");
+        return 1;
+    }
+    finally
+    {
+        await client.DisposeAsync();
+        await rpc.DisposeAsync();
+    }
+}
+
+/// <summary>M2 服务模式：单实例幂等 → 起 NamedPipe 服务 → AgentRpc 接管；孤儿/关闭信号驱动退出。</summary>
+static async Task<int> RunServiceModeAsync(AgentOptions options)
+{
+    // 单实例幂等（§3.1-B）：管道已存在说明 Agent 在跑，直接退出（复用语义）
+    try
+    {
+        var probe = new NamedPipeClient(options.PipeName!);
+        await using (probe.ConfigureAwait(false))
+        {
+            await probe.ConnectAsync();
+        }
+        Console.Out.WriteLine($"[service] {options.PipeName} 已有实例在运行，本进程退出（复用现有实例）");
+        return 0;
+    }
+    catch
+    {
+        // 连不上 = 无既有实例，继续
+    }
+
+    var link = new HuaweiSppClient();
+    var server = new NamedPipeServer(options.PipeName!);
+    var rpc = new AgentRpc(link, server, new AgentRpcOptions());
+    rpc.Start();
+    Console.Out.WriteLine($"[service] IPC 服务端就绪: {options.PipeName}");
+
+    await rpc.ShutdownSignal;
+    Console.Out.WriteLine("[service] graceful exit (0)");
+    await rpc.DisposeAsync();
+    return 0;
 }
