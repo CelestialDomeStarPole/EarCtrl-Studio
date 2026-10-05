@@ -57,7 +57,13 @@ public sealed class HuaweiSppClient : ISppLink
     {
         Started = false;
         _recvCts?.Cancel();
-        try { if (_recvTask != null) await _recvTask; } catch (OperationCanceledException) { }
+        if (_recvTask != null)
+        {
+            // WinRT DataReader.LoadAsync 可能不响应取消（底层 native 操作不中断），
+            // 无限等待会让孤儿退出半途夭折、留下「_cts 已取消但服务还活着」的僵尸进程——必须限时
+            try { await _recvTask.WaitAsync(TimeSpan.FromSeconds(3)); }
+            catch { /* 超时/取消/已结束都继续：dispose socket 强制断流收尾 */ }
+        }
         _transport.Dispose();
     }
 

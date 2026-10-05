@@ -32,6 +32,11 @@ public sealed class AgentRpc : IAsyncDisposable
     private Task? _selfHealLoop;
     private Timer? _orphanTimer;
     private Timer? _batteryPollTimer;
+    /// <summary>链路操作互斥：connect/disconnect/L3 自愈串行化，杜绝「断开被并发重连抢回」竞态。</summary>
+    private readonly SemaphoreSlim _linkGate = new(1, 1);
+    private int _selfHealFailures;
+    private bool _selfHealSurrendered;
+    private bool _lastObservedDevicePresent = true;
     private readonly TaskCompletionSource _shutdownTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public string ProtocolVersion => "1";
@@ -94,19 +99,32 @@ public sealed class AgentRpc : IAsyncDisposable
                 return null;
 
             case "connect":
-                // 幂等：链路已在（如主程序重发 connect）直接回快照，避免重复建链破坏收包循环
-                if (_link.Started)
+                // 用户主动恢复连接；内建快速重试（旧 RFCOMM 会话释放需要 1~3s，立即重连常失败）
+                _userDisconnected = false;
+                try
                 {
-                    return StateSnapshot();
+                    await ConnectWithRetryAsync(ReadAddress(request.Params), attempts: 3, delayMs: 500);
                 }
-                _userDisconnected = false; // 用户主动恢复连接
-                await ConnectAsync(ReadAddress(request.Params));
+                catch (Exception ex)
+                {
+                    PublishConnection("failed", ex.Message);
+                    throw;
+                }
                 return StateSnapshot();
 
             case "disconnect":
-                // 用户主动断开：停链路并阻止 L3 自愈拉回（直到下次 connect/设备回归）
+                // 用户主动断开：停链路并阻止 L3 自愈拉回（直到下次 connect/设备回归）。
+                // 拿链路锁：若自愈正在重建 SPP，等它完成后真正停掉（保证断开必然生效）
                 _userDisconnected = true;
-                await _link.StopAsync();
+                await _linkGate.WaitAsync(_cts.Token);
+                try
+                {
+                    await _link.StopAsync();
+                }
+                finally
+                {
+                    _linkGate.Release();
+                }
                 PublishConnection("disconnected");
                 return StateSnapshot();
 
@@ -146,6 +164,25 @@ public sealed class AgentRpc : IAsyncDisposable
 
     // ---- 连接与自愈 ----
 
+    /// <summary>connect（IPC）带快速重试：旧 RFCOMM 会话释放期间建链会失败，几百 ms 后重试通常即可成功。</summary>
+    private async Task ConnectWithRetryAsync(ulong? address, int attempts, int delayMs)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await ConnectAsync(address);
+                return;
+            }
+            catch (Exception)
+            {
+                if (attempt >= attempts) throw;
+                PublishConnection("reconnecting");
+                await Task.Delay(delayMs, _cts.Token);
+            }
+        }
+    }
+
     private async Task ConnectAsync(ulong? address)
     {
         var addr = address ?? _deviceAddress
@@ -153,47 +190,116 @@ public sealed class AgentRpc : IAsyncDisposable
         _deviceAddress = addr;
         PublishConnection("connecting");
 
+        await _linkGate.WaitAsync(_cts.Token);
         try
         {
-            await _link.StartAsync(addr, _options.RfcommChannel);
+            // 幂等：链路已在（主程序重发 connect / 自愈刚连上）直接报已连接
+            if (!_link.Started)
+            {
+                await _link.StartAsync(addr, _options.RfcommChannel);
+                StartBatteryPoll();
+                _selfHealLoop ??= Task.Run(() => SelfHealLoop(_cts.Token));
+            }
             PublishConnection("connected");
-            StartBatteryPoll();
-            _selfHealLoop ??= Task.Run(() => SelfHealLoop(_cts.Token));
+            _selfHealSurrendered = false;
+            _selfHealFailures = 0;
         }
-        catch (Exception ex)
+        finally
         {
-            PublishConnection("failed", ex.Message);
-            throw;
+            _linkGate.Release();
         }
     }
 
-    /// <summary>L3 自愈：链路断开由 Agent 内部指数退避重连，进程不重启（§3.1-D）。</summary>
+    /// <summary>
+    /// L3 自愈：链路意外断开时指数退避重连（500ms 起步 ×2，10s 封顶），进程不重启（§3.1-D）。
+    /// - 设备系统层已断开 → 绝不重连（出站 RFCOMM 会把设备拉回），并发布 disconnected 让 UI 收敛；
+    /// - 连续 3 次 SPP 建链失败 → 放弃自愈（出站尝试会把 ACL 拉回造成「设备在线」假象，无限重试会让 UI 永远「重连中」）；
+    /// - 设备离开（Disconnected→Connected 边沿）后回来 → 重置失败计数，给新一轮重试机会；
+    /// - connect 指令成功会无条件重置放弃状态。
+    /// </summary>
     private async Task SelfHealLoop(CancellationToken ct)
     {
-        var backoff = 1000;
+        var backoff = 500;
         while (!ct.IsCancellationRequested)
         {
             try
             {
-                await Task.Delay(500, ct);
-                // 用户主动断开（disconnect）期间不自愈，否则断开会被立刻拉回
-                if (_userDisconnected || _link.Started || _deviceAddress is null) continue;
-                PublishConnection("reconnecting");
+                await Task.Delay(backoff, ct);
+                if (_userDisconnected || _deviceAddress is null) continue;
+
+                // 设备系统层连接状态（锁外查询）：不在线则绝不发起出站连接
+                var deviceConnected = await IsDeviceConnectedAsync(_deviceAddress.Value);
+                var deviceReappeared = deviceConnected && !_lastObservedDevicePresent;
+                _lastObservedDevicePresent = deviceConnected;
+
+                if (!deviceConnected)
+                {
+                    if (!_selfHealSurrendered)
+                    {
+                        // 状态收敛：设备不在 = 未连接（一次性发布，避免 UI 停在「重连中」）
+                        _selfHealSurrendered = true;
+                        PublishConnection("disconnected");
+                    }
+                    continue;
+                }
+
+                if (deviceReappeared && _selfHealSurrendered)
+                {
+                    _selfHealSurrendered = false;
+                    _selfHealFailures = 0;
+                }
+
+                if (_selfHealSurrendered) continue;
+
+                await _linkGate.WaitAsync(ct);
                 try
                 {
-                    await _link.StartAsync(_deviceAddress.Value, _options.RfcommChannel);
-                    PublishConnection("connected");
-                    backoff = 1000;
+                    if (_userDisconnected || _link.Started) continue;
+                    PublishConnection("reconnecting");
+                    try
+                    {
+                        await _link.StartAsync(_deviceAddress.Value, _options.RfcommChannel);
+                        PublishConnection("connected");
+                        StartBatteryPoll();
+                        _selfHealSurrendered = false;
+                        _selfHealFailures = 0;
+                        backoff = 500;
+                    }
+                    catch
+                    {
+                        _selfHealFailures++;
+                        backoff = Math.Min(backoff * 2, 10000);
+                        if (_selfHealFailures >= 3)
+                        {
+                            _selfHealSurrendered = true;
+                            PublishConnection("disconnected", "SPP 连续建立失败，已停止自动重连");
+                        }
+                    }
                 }
-                catch
+                finally
                 {
-                    backoff = Math.Min(backoff * 2, 30000);
+                    _linkGate.Release();
                 }
             }
             catch (OperationCanceledException)
             {
                 return;
             }
+        }
+    }
+
+    /// <summary>设备在系统蓝牙层面是否已连接（A2DP/HFP 任一 profile 活跃）。查询失败时保守返回 true。</summary>
+    private static async Task<bool> IsDeviceConnectedAsync(ulong address)
+    {
+        try
+        {
+            var device = await Windows.Devices.Bluetooth.BluetoothDevice.FromBluetoothAddressAsync(address);
+            return device is null ||
+                   device.ConnectionStatus == Windows.Devices.Bluetooth.BluetoothConnectionStatus.Connected;
+        }
+        catch
+        {
+            return true; // 查询失败不阻塞自愈（保守尝试）
         }
     }
 
@@ -434,8 +540,10 @@ public sealed class AgentRpc : IAsyncDisposable
     {
         _cts.Cancel();
         _batteryPollTimer?.Dispose();
-        await _link.StopAsync();
+        // 先放行退出信号再清理：清理若挂起（WinRT 取消不响应），进程仍能走 DisposeAsync 退出，
+        // 不会留下「_cts 已取消但 IPC 服务还开着」的僵尸（connect 会全部立即失败 "A task was canceled."）
         _shutdownTcs.TrySetResult();
+        await _link.StopAsync();
     }
 
     public async ValueTask DisposeAsync()

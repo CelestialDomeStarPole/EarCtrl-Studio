@@ -198,12 +198,8 @@ public sealed class AgentSupervisor : IAsyncDisposable
         }
         if (State == AgentState.Ready)
         {
-            // Ready 但链路被主动断开过 → 恢复连接；链路本就活着 → 无操作
-            lock (_gate)
-            {
-                if (!_suppressedConnect) return Task.CompletedTask;
-                _suppressedConnect = false;
-            }
+            // Ready 态用户仍可点「连接」：链路活着则 Agent 幂等回已连接；链路断（含自愈已放弃）则重连
+            lock (_gate) _suppressedConnect = false;
             _awayTimer?.Dispose();
             _awayTimer = null;
             return ResumeConnectAsync();
