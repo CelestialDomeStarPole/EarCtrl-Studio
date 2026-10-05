@@ -57,6 +57,8 @@ public sealed class AgentSupervisor : IAsyncDisposable
     private DateTime _cooldownUntilUtc = DateTime.MinValue;
     private ulong? _deviceAddress;
     private bool _devicePresent;
+    /// <summary>链路被主动断开（App 内断开 / 系统蓝牙断开），设备回归前不得自愈拉回。</summary>
+    private bool _suppressedConnect;
 
     public string Brand => _profile.Brand;
     public AgentState State { get => _state; private set { _state = value; StateChanged?.Invoke(this, new AgentStateChangedEventArgs(Brand, value)); } }
@@ -81,9 +83,23 @@ public sealed class AgentSupervisor : IAsyncDisposable
     {
         // 名称必须命中本 Profile（多品牌并行时 detector 会广播给所有 supervisor）
         if (DeviceProfileRegistry.MatchByName([_profile], deviceName) is null) return;
-        lock (_gate) { _devicePresent = true; _deviceAddress = address; }
+        bool suppressed;
+        lock (_gate) { _devicePresent = true; _deviceAddress = address; suppressed = _suppressedConnect; }
         if (!Enabled) { State = AgentState.Disabled; return; }
-        if (State is AgentState.Ready or AgentState.AgentStarting or AgentState.Connecting) return;
+
+        if (State == AgentState.Ready)
+        {
+            // 设备回归：恢复此前被主动断开（系统蓝牙断开）的链路（C-2「等设备回归」语义）
+            if (suppressed)
+            {
+                lock (_gate) _suppressedConnect = false;
+                _awayTimer?.Dispose();
+                _awayTimer = null;
+                _ = Task.Run(ResumeConnectAsync);
+            }
+            return;
+        }
+        if (State is AgentState.AgentStarting or AgentState.Connecting) return;
 
         if (DateTime.UtcNow < _cooldownUntilUtc)
         {
@@ -100,7 +116,20 @@ public sealed class AgentSupervisor : IAsyncDisposable
     public void OnDeviceDisappeared(string deviceName)
     {
         if (DeviceProfileRegistry.MatchByName([_profile], deviceName) is null) return;
-        lock (_gate) { _devicePresent = false; }
+        lock (_gate) { _devicePresent = false; _suppressedConnect = true; }
+        // 设备离开：立即让 Agent 停止协议链路与自愈（用户在系统蓝牙断开不该被强行拉回），
+        // 进程保留宽限期（A-6）等设备回归
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (_session is { Connected: true })
+                {
+                    await _session.SendRequestAsync("disconnect", null, 3000);
+                }
+            }
+            catch { /* 断开失败不阻塞 */ }
+        });
         // A-6：宽限期内 Agent 继续服务，超时才 shutdown
         _awayTimer?.Dispose();
         _awayTimer = new Timer(_ =>
@@ -158,10 +187,26 @@ public sealed class AgentSupervisor : IAsyncDisposable
     /// <summary>C-1 手动连接兜底：探测未命中时用已知地址直接拉起 + connect。</summary>
     public Task ManualConnectAsync(ulong address)
     {
-        lock (_gate) { _devicePresent = true; _deviceAddress = address; }
-        if (State is AgentState.Ready or AgentState.Connecting or AgentState.AgentStarting)
+        lock (_gate)
+        {
+            _devicePresent = true;
+            _deviceAddress = address;
+        }
+        if (State is AgentState.Connecting or AgentState.AgentStarting)
         {
             return Task.CompletedTask;
+        }
+        if (State == AgentState.Ready)
+        {
+            // Ready 但链路被主动断开过 → 恢复连接；链路本就活着 → 无操作
+            lock (_gate)
+            {
+                if (!_suppressedConnect) return Task.CompletedTask;
+                _suppressedConnect = false;
+            }
+            _awayTimer?.Dispose();
+            _awayTimer = null;
+            return ResumeConnectAsync();
         }
         _awayTimer?.Dispose();
         _awayTimer = null;
@@ -169,12 +214,31 @@ public sealed class AgentSupervisor : IAsyncDisposable
         return LaunchAsync();
     }
 
-    /// <summary>C-2 手动断开：断协议链路但保留 Agent 进程。</summary>
+    /// <summary>C-2 手动断开：断协议链路但保留 Agent 进程（阻止自愈拉回，直到手动连接/设备回归）。</summary>
     public async Task ManualDisconnectAsync()
     {
+        lock (_gate) _suppressedConnect = true;
         if (_session is { Connected: true })
         {
             try { await _session.SendRequestAsync("disconnect", null, 5000); } catch { /* 断开失败不阻塞 */ }
+        }
+    }
+
+    /// <summary>对已 Ready 的会话重发 connect（设备回归 / 手动恢复）。</summary>
+    private async Task ResumeConnectAsync()
+    {
+        ulong? addr;
+        lock (_gate) addr = _deviceAddress;
+        var session = _session;
+        if (session is not { Connected: true }) return;
+        try
+        {
+            await session.SendRequestAsync("connect",
+                addr is null ? null : new { deviceAddress = addr.Value.ToString("X12") }, 15000);
+        }
+        catch
+        {
+            // 恢复失败交给 L1/L2 兜底
         }
     }
 

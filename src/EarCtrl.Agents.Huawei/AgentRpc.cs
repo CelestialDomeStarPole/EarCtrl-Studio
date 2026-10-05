@@ -20,6 +20,7 @@ public sealed class AgentRpc : IAsyncDisposable
     private readonly CancellationTokenSource _cts = new();
 
     private ulong? _deviceAddress;
+    private bool _userDisconnected;
     private int? _ancMode;     // 0 normal / 1 cancellation / 2 awareness
     private int? _ancLevel;    // 0 normal / 1 comfort / 2 ultra / 3 dynamic
     private (int? Global, int? Left, int? Right, int? Case, bool? Charging)? _battery;
@@ -98,10 +99,13 @@ public sealed class AgentRpc : IAsyncDisposable
                 {
                     return StateSnapshot();
                 }
+                _userDisconnected = false; // 用户主动恢复连接
                 await ConnectAsync(ReadAddress(request.Params));
                 return StateSnapshot();
 
             case "disconnect":
+                // 用户主动断开：停链路并阻止 L3 自愈拉回（直到下次 connect/设备回归）
+                _userDisconnected = true;
                 await _link.StopAsync();
                 PublishConnection("disconnected");
                 return StateSnapshot();
@@ -172,7 +176,8 @@ public sealed class AgentRpc : IAsyncDisposable
             try
             {
                 await Task.Delay(500, ct);
-                if (_link.Started || _deviceAddress is null) continue;
+                // 用户主动断开（disconnect）期间不自愈，否则断开会被立刻拉回
+                if (_userDisconnected || _link.Started || _deviceAddress is null) continue;
                 PublishConnection("reconnecting");
                 try
                 {
