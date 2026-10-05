@@ -30,11 +30,11 @@ public sealed class NamedPipeClient : IAsyncDisposable
 
     public NamedPipeClient(string pipeName) => _pipeName = pipeName;
 
-    /// <summary>连接到 Agent。失败抛异常（由调用方决定重试）。</summary>
-    public async Task ConnectAsync(CancellationToken ct = default)
+    /// <summary>连接到 Agent。失败抛异常（由调用方决定重试）。timeoutMs：管道就绪等待上限（Agent 冷启动含 JIT+单实例探测，默认 15s）。</summary>
+    public async Task ConnectAsync(int timeoutMs = 15000, CancellationToken ct = default)
     {
         _pipe = new NamedPipeClientStream(".", _pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-        await _pipe.ConnectAsync(3000, ct);
+        await _pipe.ConnectAsync(timeoutMs, ct);
 
         _reader = new StreamReader(_pipe, Encoding.UTF8);
         _writer = new StreamWriter(_pipe, new UTF8Encoding(false)) { AutoFlush = true };

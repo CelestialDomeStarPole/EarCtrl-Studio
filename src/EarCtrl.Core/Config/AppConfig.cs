@@ -24,6 +24,7 @@ public sealed class AppConfig
     public int HeartbeatTimeoutSec { get; set; } = 90;    // 主程序判定僵死（3×心跳）
     public int ShutdownGraceSec { get; set; } = 3;        // shutdown 后等待退出
     public int OrphanGraceSec { get; set; } = 30;         // Agent 检测主程序死亡后的等待
+    public int AgentConnectTimeoutSec { get; set; } = 15; // 主程序连 Agent 管道等待（Agent 冷启动含 JIT+单实例探测）
     public int RestartWindowSec { get; set; } = 300;      // 熔断统计窗口
     public int RestartLimit { get; set; } = 3;            // 窗口内重启次数上限
     public int CircuitCooldownSec { get; set; } = 60;     // 熔断冷却

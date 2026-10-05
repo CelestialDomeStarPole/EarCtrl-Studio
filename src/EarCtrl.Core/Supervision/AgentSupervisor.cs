@@ -31,7 +31,7 @@ public interface IAgentSessionFactory
 public sealed class NamedPipeSessionFactory : IAgentSessionFactory
 {
     public Task<IAgentSession> CreateAsync(DeviceProfile profile, AppConfig config) =>
-        Task.FromResult<IAgentSession>(new NamedPipeSession(profile.PipeName));
+        Task.FromResult<IAgentSession>(new NamedPipeSession(profile.PipeName, config.AgentConnectTimeoutSec * 1000));
 }
 
 /// <summary>

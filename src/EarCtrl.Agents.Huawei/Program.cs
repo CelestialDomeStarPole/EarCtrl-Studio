@@ -257,7 +257,8 @@ static async Task<int> RunSelfTestAsync(AgentOptions options)
 static async Task<int> RunServiceModeAsync(AgentOptions options)
 {
     // 单实例幂等（§3.1-B）：管道已存在说明 Agent 在跑，直接退出（复用语义）。
-    // 探测两次：消除「旧实例尚未 Start 管道」的拉起时序竞态。
+    // 探测两次（消拉起时序竞态）；探测用短超时快速失败——管道不存在时 ConnectAsync 会自旋等满超时，
+    // 长超时会把冷启动拖慢数秒，导致主程序 3s 内连不上（首次连接必失败的根因）。
     for (var attempt = 0; attempt < 2; attempt++)
     {
         try
@@ -265,7 +266,7 @@ static async Task<int> RunServiceModeAsync(AgentOptions options)
             var probe = new NamedPipeClient(options.PipeName!);
             await using (probe.ConfigureAwait(false))
             {
-                await probe.ConnectAsync();
+                await probe.ConnectAsync(300);
             }
             Console.Out.WriteLine($"[service] {options.PipeName} 已有实例在运行，本进程退出（复用现有实例）");
             return 0;

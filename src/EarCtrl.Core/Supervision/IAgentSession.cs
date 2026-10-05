@@ -23,7 +23,13 @@ public sealed class NamedPipeSession : IAgentSession
 {
     private readonly NamedPipeClient _client;
 
-    public NamedPipeSession(string pipeName) => _client = new NamedPipeClient(pipeName);
+    public NamedPipeSession(string pipeName, int connectTimeoutMs = 15000)
+    {
+        _client = new NamedPipeClient(pipeName);
+        _connectTimeoutMs = connectTimeoutMs;
+    }
+
+    private readonly int _connectTimeoutMs;
 
     public bool Connected => _client.Connected;
 
@@ -45,7 +51,7 @@ public sealed class NamedPipeSession : IAgentSession
         remove => _client.AnyFrameReceived -= value;
     }
 
-    public Task ConnectAsync(CancellationToken ct = default) => _client.ConnectAsync(ct);
+    public Task ConnectAsync(CancellationToken ct = default) => _client.ConnectAsync(_connectTimeoutMs, ct);
 
     public Task<IpcResponse> SendRequestAsync(string method, object? parameters = null, int timeoutMs = 5000) =>
         _client.SendRequestAsync(method, parameters, timeoutMs);
