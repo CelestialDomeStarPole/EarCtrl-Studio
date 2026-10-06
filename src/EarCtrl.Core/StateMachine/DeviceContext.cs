@@ -72,9 +72,12 @@ public sealed class DeviceRuntimeState
     /// <summary>温度（°C）。</summary>
     public double? TempLeft { get; internal set; }
     public double? TempRight { get; internal set; }
-    /// <summary>该耳是否在充电盒内（实测：入盒后 0127 该耳电量报 0；null = 未收到电量帧）。</summary>
+    /// <summary>该耳是否在充电盒内（0x01 开盖在仓 / 0x02 关盖在仓均为 true；null = 未收到电量帧）。</summary>
     public bool? InCaseLeft { get; internal set; }
     public bool? InCaseRight { get; internal set; }
+    /// <summary>在仓且盒盖已合（0x02；此状态下耳机侧电量上报为 0 占位）。</summary>
+    public bool? LidClosedLeft { get; internal set; }
+    public bool? LidClosedRight { get; internal set; }
 
     public AncFiveState Anc { get; internal set; } = AncFiveState.Unknown;
     public bool? LowLatency { get; internal set; }
@@ -199,6 +202,8 @@ public sealed class DeviceContext
                     state.TempRight = Json.ReadDouble(battery, "tempRight") ?? state.TempRight;
                     state.InCaseLeft = Json.ReadBool(battery, "inCaseLeft") ?? state.InCaseLeft;
                     state.InCaseRight = Json.ReadBool(battery, "inCaseRight") ?? state.InCaseRight;
+                    state.LidClosedLeft = Json.ReadBool(battery, "lidClosedLeft") ?? state.LidClosedLeft;
+                    state.LidClosedRight = Json.ReadBool(battery, "lidClosedRight") ?? state.LidClosedRight;
                 }
                 if (Json.GetObject(e.Payload, "anc") is { } anc)
                 {

@@ -15,6 +15,7 @@ public static class Cmd
     public static readonly byte[] LowLatency = [0x2B, 0x6C];
     public static readonly byte[] EqRead = [0x2B, 0x4A];
     public static readonly byte[] EqWrite = [0x2B, 0x49];
+    public static readonly byte[] KeepAlive = [0x2B, 0x70];      // 查询使能/保活帧（真机实测：不发它，0108 一律不回帧）
 }
 
 public enum AncMode
@@ -39,7 +40,7 @@ public static class HuaweiCommands
     public static HuaweiSppPackage BatteryReadRequest() =>
         HuaweiSppPackage.ReadRequest(Cmd.BatteryRead, 1, 2, 3);
 
-    /// <summary>电量读请求（不等待响应版）：0108 触发耳机重推 0127 状态帧（轮询兜底用）。</summary>
+    /// <summary>电量读请求（不等待响应版）：0108 查询（需先发 2B70 使能帧，回帧 cmd=0108）。</summary>
     public static HuaweiSppPackage BatteryReadNoWaitRequest()
     {
         var pkg = BatteryReadRequest();
@@ -103,32 +104,6 @@ public static class HuaweiCommands
     {
         var data = new[] { (byte)activeMode, (byte)level };
         return HuaweiSppPackage.ChangeRequest(Cmd.AncWrite, (1, data));
-    }
-
-    // ---- 设备信息（handler/info.py，连接后首条，兼作会话激活） ----
-
-    public static readonly byte[] InfoRead = [0x01, 0x07];
-
-    public static HuaweiSppPackage InfoReadRequest() =>
-        HuaweiSppPackage.ReadRequest(InfoRead, Enumerable.Range(0, 32).ToArray());
-
-    public static Dictionary<string, string> ParseInfo(HuaweiSppPackage pkg)
-    {
-        Dictionary<int, string> descriptor = new()
-        {
-            [3] = "hardware_ver",
-            [7] = "software_ver",
-            [9] = "serial_number",
-            [10] = "device_submodel",
-            [15] = "device_model",
-        };
-        var outDict = new Dictionary<string, string>();
-        foreach (var (key, value) in pkg.Parameters)
-        {
-            outDict[descriptor.GetValueOrDefault(key, $"field_{key}")] =
-                System.Text.Encoding.UTF8.GetString(value).Trim('\0');
-        }
-        return outDict;
     }
 
     // ---- 低延迟（handler/low_latency.py） ----

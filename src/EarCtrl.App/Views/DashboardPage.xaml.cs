@@ -98,17 +98,18 @@ public partial class DashboardPage : Page
             return;
         }
 
-        // 入耳式：左/右单元 + 充电仓
-        // 在盒时该耳电量报 0（华为协议行为，非真实电量），显示 --% 避免误导
-        LeftPct.Text = state.InCaseLeft == true ? "--%" : Pct(state.BatteryLeft);
+        // 入耳式：左/右单元 + 充电仓（在仓区分开盖/关盖；关盖在仓时耳机侧电量为 0 占位，显示 --%）
+        var leftLid = state.LidClosedLeft == true;
+        var rightLid = state.LidClosedRight == true;
+        LeftPct.Text = state.InCaseLeft == true && leftLid ? "--%" : Pct(state.BatteryLeft);
         LeftVoltage.Text = Voltage(state.VoltageLeft);
         LeftTemp.Text = Temp(state.TempLeft);
-        LeftStatus.Text = WearState(state.InCaseLeft);
+        LeftStatus.Text = WearState(state.InCaseLeft, leftLid);
 
-        RightPct.Text = state.InCaseRight == true ? "--%" : Pct(state.BatteryRight);
+        RightPct.Text = state.InCaseRight == true && rightLid ? "--%" : Pct(state.BatteryRight);
         RightVoltage.Text = Voltage(state.VoltageRight);
         RightTemp.Text = Temp(state.TempRight);
-        RightStatus.Text = WearState(state.InCaseRight);
+        RightStatus.Text = WearState(state.InCaseRight, rightLid);
 
         // 充电仓行：profile 声明支持才显示
         var hasCase = profile.Capabilities.Battery.Case;
@@ -131,10 +132,10 @@ public partial class DashboardPage : Page
 
     private static string Temp(double? value) => value is null ? "--" : $"{value:0.0}°C";
 
-    private static string WearState(bool? inCase) => inCase switch
+    private static string WearState(bool? inCase, bool lidClosed) => inCase switch
     {
         null => "--",
-        true => Loc.Tr("Battery.InCase"),
+        true => Loc.Tr(lidClosed ? "Battery.InCaseClosed" : "Battery.InCaseOpen"),
         false => Loc.Tr("Battery.Wearing"),
     };
 

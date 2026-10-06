@@ -59,6 +59,8 @@
   <data name="Battery.Temperature" xml:space="preserve"><value>Temperature</value></data>
   <data name="Battery.Wearing" xml:space="preserve"><value>Wearing</value></data>
   <data name="Battery.InCase" xml:space="preserve"><value>In case</value></data>
+  <data name="Battery.InCaseOpen" xml:space="preserve"><value>In case (lid open)</value></data>
+  <data name="Battery.InCaseClosed" xml:space="preserve"><value>In case (lid closed)</value></data>
 
   <!-- Connection status (M3) -->
   <data name="Status.Connected" xml:space="preserve"><value>Connected</value></data>
