@@ -47,9 +47,36 @@ public static class ConfigStore
         var portableFlag = Path.Combine(AppContext.BaseDirectory, "portable.flag");
         _dir = File.Exists(portableFlag)
             ? Path.Combine(AppContext.BaseDirectory, "data")
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EarCtrl");
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "EarCtrl Studio", "data");
         Directory.CreateDirectory(_dir);
+        MigrateLegacyDir(_dir);
         return _dir;
+    }
+
+    /// <summary>
+    /// 一次性迁移：旧数据目录 %LOCALAPPDATA%\EarCtrl → 新目录（M3.5 目录规范统一为 data 子文件夹）。
+    /// M5 安装器将提供数据目录选项（LOCALAPPDATA\EarCtrl Studio\data 或 安装目录\data），见实现计划 M5。
+    /// </summary>
+    private static void MigrateLegacyDir(string newDir)
+    {
+        try
+        {
+            var legacy = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EarCtrl");
+            if (!Directory.Exists(legacy)) return;
+            foreach (var file in Directory.GetFiles(legacy))
+            {
+                var target = Path.Combine(newDir, Path.GetFileName(file));
+                if (File.Exists(target)) continue; // 新目录已有同名文件：不覆盖
+                File.Move(file, target);
+            }
+            try { Directory.Delete(legacy); } catch { /* 目录非空则保留，无碍 */ }
+        }
+        catch
+        {
+            // 迁移失败不阻塞启动
+        }
     }
 
     public static string ResolvePath() => Path.Combine(ResolveDir(), "config.json");
