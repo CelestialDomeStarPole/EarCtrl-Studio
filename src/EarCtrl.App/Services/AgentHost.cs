@@ -144,6 +144,25 @@ public sealed class AgentHost : IAsyncDisposable
     public Task ManualDisconnectAsync(string brand) =>
         GetSupervisor(brand)?.ManualDisconnectAsync() ?? Task.CompletedTask;
 
+    /// <summary>轮询间隔变更（设置页）：对所有在跑 Agent 热更新；未就绪的 Agent 下次拉起以命令行初值生效。</summary>
+    public async Task ApplyPollIntervalAsync(int seconds)
+    {
+        var ms = Math.Max(0, seconds) * 1000;
+        List<AgentSupervisor> supervisors;
+        lock (_gate) supervisors = _supervisors.Values.ToList();
+        foreach (var supervisor in supervisors)
+        {
+            try
+            {
+                await supervisor.SendAsync("setPollMs", new { ms });
+            }
+            catch
+            {
+                // Agent 未就绪/不支持：忽略——下次拉起时命令行 --poll 会带最新值
+            }
+        }
+    }
+
     public async Task StopAsync()
     {
         lock (_gate)

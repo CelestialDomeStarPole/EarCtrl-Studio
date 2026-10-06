@@ -13,6 +13,9 @@ public sealed class AppConfig
     public string Language { get; set; } = "zh-CN";       // zh-CN | en-US
     public bool DevToolsVisible { get; set; } = false;
 
+    // 状态轮询（华为 Agent）：0=关闭，1-5=秒。轮询驱动在仓/佩戴检测；电量另有耳机事件推送
+    public int PollIntervalSec { get; set; } = 1;
+
     // 已添加设备（brand 列表，K10 设备区；默认含随附华为 Profile，首启动即用）
     public List<string> AddedDevices { get; set; } = ["huawei"];
 

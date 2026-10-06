@@ -54,7 +54,10 @@ static async Task<int> RunServiceModeAsync(AgentOptions options)
         Console.Out.WriteLine($"[service] {options.PipeName} 已有实例在运行，本进程退出（复用现有实例）");
         return 0;
     }
-    var rpc = new AgentRpc(link, server, new AgentRpcOptions());
+    var rpc = new AgentRpc(link, server, new AgentRpcOptions
+    {
+        StatePollMs = options.PollMs ?? 1_000, // 主程序 --poll 传入 AppConfig.PollIntervalSec（0=关闭）
+    });
     rpc.Start();
     Console.Out.WriteLine($"[service] IPC 服务端就绪: {options.PipeName}");
 

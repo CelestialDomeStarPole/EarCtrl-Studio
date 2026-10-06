@@ -30,7 +30,7 @@ public sealed class AgentProcessLauncher : IAgentProcessLauncher
         var startInfo = new ProcessStartInfo
         {
             FileName = exePath,
-            Arguments = $"--pipe {profile.PipeName} --profile \"{profile.SourcePath ?? Path.Combine(exeDir, "profiles", $"{profile.Brand}.device.json")}\"",
+            Arguments = $"--pipe {profile.PipeName} --profile \"{profile.SourcePath ?? Path.Combine(exeDir, "profiles", $"{profile.Brand}.device.json")}\" --poll {Math.Max(0, config.PollIntervalSec) * 1000}",
             UseShellExecute = false,
             CreateNoWindow = true,
             WorkingDirectory = exeDir,

@@ -41,6 +41,30 @@
                     </Grid>
                 </StackPanel>
             </ui:Card>
+
+            <!-- 状态轮询卡片：轮询驱动在仓/佩戴检测；电量靠耳机事件推送不依赖轮询 -->
+            <ui:Card Margin="0,0,0,12">
+                <StackPanel>
+                    <ui:TextBlock FontTypography="Subtitle" Text="{Binding [Settings.PollInterval], Source={x:Static services:LocSource.Instance}}" />
+
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ui:TextBlock Grid.Column="0" VerticalAlignment="Center"
+                                      Text="{Binding [Settings.PollInterval], Source={x:Static services:LocSource.Instance}}" />
+                        <ComboBox Grid.Column="1" Width="160" MinHeight="34"
+                                  ItemsSource="{Binding PollOptions}"
+                                  SelectedValue="{Binding SelectedPollIntervalSec}"
+                                  SelectedValuePath="Key" DisplayMemberPath="Value" />
+                    </Grid>
+
+                    <ui:TextBlock Margin="0,8,0,0" FontTypography="Caption" TextWrapping="Wrap"
+                                  Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                  Text="{Binding [Settings.PollInterval.Hint], Source={x:Static services:LocSource.Instance}}" />
+                </StackPanel>
+            </ui:Card>
         </StackPanel>
     </ScrollViewer>
 </Page>

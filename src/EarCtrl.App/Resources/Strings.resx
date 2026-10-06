@@ -62,6 +62,11 @@
   <data name="Battery.InCaseOpen" xml:space="preserve"><value>开盖在盒</value></data>
   <data name="Battery.InCaseClosed" xml:space="preserve"><value>关盖在盒</value></data>
 
+  <!-- 设置页：状态轮询 -->
+  <data name="Settings.PollInterval" xml:space="preserve"><value>状态轮询间隔</value></data>
+  <data name="Settings.PollInterval.Hint" xml:space="preserve"><value>关闭轮询将影响在仓检测（仅开关盖时可能自动发起一次检测），增大间隔将导致在仓检测结果延时。</value></data>
+  <data name="Settings.Poll.Off" xml:space="preserve"><value>关闭</value></data>
+
   <!-- 连接状态（M3） -->
   <data name="Status.Connected" xml:space="preserve"><value>已连接</value></data>
   <data name="Status.Connecting" xml:space="preserve"><value>连接中…</value></data>

@@ -49,6 +49,7 @@ public sealed class AgentRpc : IAsyncDisposable
         _link = link;
         _server = server;
         _options = options;
+        _statePollMs = options.StatePollMs;
 
         _server.RequestReceived += OnRequest;
         _server.ClientConnected += OnClientConnected;
@@ -145,6 +146,11 @@ public sealed class AgentRpc : IAsyncDisposable
 
             case "setLowLatency":
                 return await SetLowLatencyAsync(request.Params);
+
+            case "setPollMs":
+                SetPollMs(ReadInt(request.Params, "ms")
+                    ?? throw new ArgumentException("缺少 ms"));
+                return new { pollMs = _statePollMs };
 
             case "debugSendRaw":
             {
@@ -456,6 +462,8 @@ public sealed class AgentRpc : IAsyncDisposable
 
     private Timer? _statePollTimer;
     private string? _lastPublishedState;
+    /// <summary>当前轮询间隔（毫秒；0=关闭）。可由 IPC setPollMs 运行时热更新。</summary>
+    private int _statePollMs;
 
     /// <summary>每次 SPP 建链成功后调用（首连/自愈重连均走此路径）。</summary>
     private void OnSessionEstablished()
@@ -481,7 +489,7 @@ public sealed class AgentRpc : IAsyncDisposable
 
     private void StartStatePoll()
     {
-        if (_statePollTimer != null) return;
+        if (_statePollTimer != null || _statePollMs <= 0) return;
         _statePollTimer = new Timer(async _ =>
         {
             try
@@ -494,7 +502,16 @@ public sealed class AgentRpc : IAsyncDisposable
                 await _link.SendPackageAsync(HuaweiCommands.BatteryReadNoWaitRequest());
             }
             catch { /* 链路瞬断：L3 自愈接管 */ }
-        }, null, _options.StatePollMs, _options.StatePollMs);
+        }, null, _statePollMs, _statePollMs);
+    }
+
+    /// <summary>IPC setPollMs：运行时热更新轮询间隔（0=关闭轮询）。</summary>
+    public void SetPollMs(int ms)
+    {
+        _statePollMs = Math.Max(0, ms);
+        _statePollTimer?.Dispose();
+        _statePollTimer = null;
+        if (_statePollMs > 0 && _link.Started) StartStatePoll();
     }
 
     private void OnRawFrame(string dir, byte[] bytes)
@@ -633,6 +650,12 @@ public sealed class AgentRpc : IAsyncDisposable
     private static bool ReadBool(JsonElement? parameters, string name) =>
         parameters is JsonElement p && p.ValueKind == JsonValueKind.Object &&
         p.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
+
+    private static int? ReadInt(JsonElement? parameters, string name) =>
+        parameters is JsonElement p && p.ValueKind == JsonValueKind.Object &&
+        p.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number
+            ? v.GetInt32()
+            : null;
 
     private static ulong? ReadAddress(JsonElement? parameters)
     {

@@ -62,6 +62,11 @@
   <data name="Battery.InCaseOpen" xml:space="preserve"><value>In case (lid open)</value></data>
   <data name="Battery.InCaseClosed" xml:space="preserve"><value>In case (lid closed)</value></data>
 
+  <!-- Settings: polling -->
+  <data name="Settings.PollInterval" xml:space="preserve"><value>Status polling interval</value></data>
+  <data name="Settings.PollInterval.Hint" xml:space="preserve"><value>Disabling polling affects in-case detection (a detection may only be triggered when opening/closing the case); larger intervals delay in-case status updates.</value></data>
+  <data name="Settings.Poll.Off" xml:space="preserve"><value>Off</value></data>
+
   <!-- Connection status (M3) -->
   <data name="Status.Connected" xml:space="preserve"><value>Connected</value></data>
   <data name="Status.Connecting" xml:space="preserve"><value>Connecting...</value></data>
