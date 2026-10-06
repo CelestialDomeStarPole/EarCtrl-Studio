@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 华为耳机诊断工具（GPL-3.0，随 EarCtrl.Agents.Huawei 同许可）。
+       独立于主构建链：EarCtrl.App 不引用本项目，dotnet publish 主程序不会包含它；
+       仅开发期真机联调用，构建方式：dotnet build tools/EarCtrl.Huawei.Diagnostics -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <RootNamespace>EarCtrl.Huawei.Diagnostics</RootNamespace>
+    <AssemblyName>EarCtrl.Huawei.Diagnostics</AssemblyName>
+    <AssemblyTitle>EarCtrl Studio - Huawei Diagnostics</AssemblyTitle>
+    <Product>EarCtrl Studio</Product>
+    <Company>EarCtrl Studio</Company>
+    <Version>0.1.0</Version>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EarCtrl.Agents.Huawei\EarCtrl.Agents.Huawei.csproj" />
+  </ItemGroup>
+
+</Project>
