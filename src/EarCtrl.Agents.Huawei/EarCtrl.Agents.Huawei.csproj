@@ -12,7 +12,7 @@
     <AssemblyTitle>EarCtrl Studio - Huawei Agent</AssemblyTitle>
     <Product>EarCtrl Studio</Product>
     <Company>EarCtrl Studio</Company>
-    <!-- License: GPL-3.0-only。本项目的华为协议层转写自 OpenFreebuds (GPL-3.0)，见 LICENSE.GPL -->
+    <!-- License: GPL-3.0-only。本项目的华为协议层借鉴 OpenFreebuds (GPL-3.0) 的协议实现，并经大量真机实测修正，见 LICENSE.GPL -->
     <Version>0.1.0</Version>
   </PropertyGroup>
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// SPP/RFCOMM 传输（等价于 OpenFreebuds _BluetoothSocketTransport：直连 (地址, 信道)）。
+// SPP/RFCOMM 传输（借鉴 OpenFreebuds _BluetoothSocketTransport：直连 (地址, 信道)，WinRT 原生实现）。
 // Windows 实现走 WinRT RfcommDeviceService(SerialPort) + StreamSocket；
 // 注意：OpenFreebuds 硬编码信道 1（buds_se_4.py `_spp_service_port = 1`），
 // WinRT 无法直接按信道号连，改为通过 SPP 服务 SDP 记录解析 ConnectionServiceName。

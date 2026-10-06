@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// CRC16-XMODEM（转写自 OpenFreebuds driver/huawei/utils.py crc16_xmodem；poly=0x1021, init=0）。
+// CRC16-XMODEM（借鉴 OpenFreebuds driver/huawei/utils.py crc16_xmodem；poly=0x1021, init=0，C# 查找表实现）。
 
 namespace EarCtrl.Agents.Huawei.Lpv2;
 

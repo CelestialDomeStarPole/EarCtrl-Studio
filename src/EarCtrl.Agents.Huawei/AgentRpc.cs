@@ -401,17 +401,11 @@ public sealed class AgentRpc : IAsyncDisposable
 
     private Task OnBatteryFrame(HuaweiSppPackage pkg)
     {
-        var battery = HuaweiCommands.ParseBattery(pkg);
+        // 忠实上报原始电量（含关盖在仓时的 0 占位）——占位场景的显示处理在 App 端 UI 规则完成
+        _battery = HuaweiCommands.ParseBattery(pkg);
         var wear = pkg.FindParam(5);
-        var p5Left = wear.Length >= 1 ? (byte?)wear[0] : null;   // param_5[0] = 左耳
-        var p5Right = wear.Length >= 2 ? (byte?)wear[1] : null;  // param_5[1] = 右耳
-        // 关盒在仓(0x02)时该耳电量为 0x00 占位（非真实电量）——保留上次真实值，避免 UI 闪 0%
-        int? left = battery.Left, right = battery.Right;
-        if (p5Left == 0x02 && left == 0 && _battery?.Left is int prevLeft) left = prevLeft;
-        if (p5Right == 0x02 && right == 0 && _battery?.Right is int prevRight) right = prevRight;
-        _battery = (battery.Global, left, right, battery.Case, battery.Charging);
-        _p5Left = p5Left;
-        _p5Right = p5Right;
+        _p5Left = wear.Length >= 1 ? (byte?)wear[0] : null;   // param_5[0] = 左耳
+        _p5Right = wear.Length >= 2 ? (byte?)wear[1] : null;  // param_5[1] = 右耳
         PublishStateIfChanged();
         return Task.CompletedTask;
     }

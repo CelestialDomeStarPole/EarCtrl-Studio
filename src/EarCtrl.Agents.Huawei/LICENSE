@@ -674,6 +674,7 @@ Public License instead of this License.  But first, please read
 <https://www.gnu.org/licenses/why-not-lgpl.html>.
 
 EarCtrl.Agent.Huawei 及其测试项目以 GPL-3.0-only 授权。
-原因：其华为协议层（Lpv2/*、Commands/*）转写自 OpenFreebuds（GPL-3.0）。
+原因：其华为协议层（Lpv2/*、Commands/*）借鉴 OpenFreebuds（GPL-3.0）的协议实现，
+并经真机实测与官方固件行为大幅修正，与源项目已存在显著差异。
 该进程与 MIT 主程序（EarCtrl.App）通过 NamedPipe IPC 通信，构成
 "单纯聚合（mere aggregation）"，GPL 不传染主程序（决策 D5/K8）。

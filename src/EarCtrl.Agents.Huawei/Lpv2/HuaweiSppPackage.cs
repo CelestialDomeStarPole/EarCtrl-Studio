@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// 华为 SPP 包帧编解码（转写自 OpenFreebuds driver/huawei/package.py HuaweiSppPackage）。
+// 华为 SPP 包帧编解码（借鉴 OpenFreebuds driver/huawei/package.py HuaweiSppPackage 的帧格式实现）。
 //
 // 帧结构：
 //   'Z'(0x5A) | len(2, 大端, = body长度+1) | 0x00 | body | crc16_xmodem(2, 大端)

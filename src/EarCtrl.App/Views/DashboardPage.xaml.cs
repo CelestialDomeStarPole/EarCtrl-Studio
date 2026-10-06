@@ -98,15 +98,18 @@ public partial class DashboardPage : Page
             return;
         }
 
-        // 入耳式：左/右单元 + 充电仓（在仓区分开盖/关盖；关盖在仓时耳机侧电量为 0 占位，显示 --%）
+        // 入耳式电量显示规则：关盖在盒 → --%（协议 0 占位）；开盖在盒且电量为 0 → --%（切换帧占位，不可信）；
+        // 开盖在盒电量 >0 → 数值；佩戴态忠实显示（0% 为真实电量）
+        var leftHideBatt = state.InCaseLeft == true && (state.LidClosedLeft == true || state.BatteryLeft == 0);
+        var rightHideBatt = state.InCaseRight == true && (state.LidClosedRight == true || state.BatteryRight == 0);
         var leftLid = state.LidClosedLeft == true;
         var rightLid = state.LidClosedRight == true;
-        LeftPct.Text = state.InCaseLeft == true && leftLid ? "--%" : Pct(state.BatteryLeft);
+        LeftPct.Text = leftHideBatt ? "--%" : Pct(state.BatteryLeft);
         LeftVoltage.Text = Voltage(state.VoltageLeft);
         LeftTemp.Text = Temp(state.TempLeft);
         LeftStatus.Text = WearState(state.InCaseLeft, leftLid);
 
-        RightPct.Text = state.InCaseRight == true && rightLid ? "--%" : Pct(state.BatteryRight);
+        RightPct.Text = rightHideBatt ? "--%" : Pct(state.BatteryRight);
         RightVoltage.Text = Voltage(state.VoltageRight);
         RightTemp.Text = Temp(state.TempRight);
         RightStatus.Text = WearState(state.InCaseRight, rightLid);

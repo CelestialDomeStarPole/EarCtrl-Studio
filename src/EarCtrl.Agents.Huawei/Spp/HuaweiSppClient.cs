@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// 华为 SPP 客户端（转写自 OpenFreebuds OfbDriverHuaweiGeneric 的收发与请求-响应关联逻辑）。
+// 华为 SPP 客户端（借鉴 OpenFreebuds OfbDriverHuaweiGeneric 的收发与请求-响应关联设计，C# 原生重写）。
 //
 // 帧收发：'Z' 开头，读 4 字节头取长度，再补足整帧。
 // 关联：请求 response_id == 请求 command_id；响应以同 command_id 唤醒等待者。

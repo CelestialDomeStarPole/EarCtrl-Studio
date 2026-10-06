@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// 华为命令表与 SE 4 ANC（per_model/buds_se_4.py）适配的命令构造（转写自 constants/spp_commands.py 与各 handler）。
+// 华为命令表与 SE 4 ANC 适配的命令构造（借鉴 OpenFreebuds constants/spp_commands.py 与各 handler 的设计，
+// 并经真机实测与官方智慧音频 App 逆向大幅修正，差异详见 .trae/documents/protocol-huawei-se4anc.md）。
 
 using EarCtrl.Agents.Huawei.Lpv2;
 
