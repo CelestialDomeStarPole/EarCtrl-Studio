@@ -15,6 +15,10 @@ public sealed class DeviceProfile
     [JsonPropertyName("brand")]
     public string Brand { get; set; } = "";
 
+    /// <summary>设备形态：earbuds（入耳式，默认）| overhead（头戴式），决定设备主页卡片布局。</summary>
+    [JsonPropertyName("formFactor")]
+    public string FormFactor { get; set; } = "earbuds";
+
     [JsonPropertyName("agentExe")]
     public string AgentExe { get; set; } = "";
 
@@ -85,6 +89,14 @@ public sealed class Capabilities
 
     [JsonPropertyName("wearDetect")]
     public bool WearDetect { get; set; }
+
+    /// <summary>支持电压上报。</summary>
+    [JsonPropertyName("voltage")]
+    public bool Voltage { get; set; }
+
+    /// <summary>支持温度上报。</summary>
+    [JsonPropertyName("temperature")]
+    public bool Temperature { get; set; }
 
     [JsonPropertyName("ldac")]
     public bool Ldac { get; set; }

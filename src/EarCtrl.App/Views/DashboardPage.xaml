@@ -5,9 +5,10 @@
       xmlns:services="clr-namespace:EarCtrl.App.Services">
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="28,20,28,28" MaxWidth="860" HorizontalAlignment="Left">
-            <!-- 页头：标题 + 添加设备 -->
-            <Grid Margin="0,0,0,16">
+        <StackPanel Margin="28,20,28,28" MaxWidth="900" HorizontalAlignment="Stretch">
+
+            <!-- 标题 + 添加设备 -->
+            <Grid Margin="0,0,0,12">
                 <ui:TextBlock FontTypography="Title"
                               Text="{Binding [Nav.Dashboard], Source={x:Static services:LocSource.Instance}}" />
                 <ui:Button HorizontalAlignment="Right" Appearance="Primary" Icon="{ui:SymbolIcon Add24}"
@@ -15,69 +16,111 @@
                            Click="OnAddDeviceClick" />
             </Grid>
 
+            <!-- 设备切换栏（横向，代码填充） -->
+            <StackPanel x:Name="DeviceBar" Orientation="Horizontal" Margin="0,0,0,16" />
+
             <!-- 未添加设备 -->
             <ui:Card x:Name="NoDeviceCard">
                 <ui:TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                               Text="{Binding [Dashboard.NoDevice], Source={x:Static services:LocSource.Instance}}" />
             </ui:Card>
 
-            <!-- 设备状态大卡片（仿 GalaxyBudsClient Dashboard：设备图示 + 左右/盒电量） -->
-            <ui:Card x:Name="DeviceCard" Visibility="Collapsed">
-                <StackPanel>
-                    <Grid>
-                        <StackPanel Orientation="Horizontal">
-                            <ui:SymbolIcon Symbol="SurfaceEarbuds24" FontSize="30" VerticalAlignment="Center" />
-                            <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                                <ui:TextBlock x:Name="DeviceNameText" FontTypography="Subtitle" Text="--" />
-                                <ui:TextBlock x:Name="ModelText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                            </StackPanel>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <ui:Button x:Name="ConnectButton" Appearance="Primary" Margin="0,0,8,0"
-                                       Content="{Binding [Dashboard.Connect], Source={x:Static services:LocSource.Instance}}"
-                                       Click="OnConnectClick" />
-                            <ui:Button x:Name="DisconnectButton"
-                                       Content="{Binding [Dashboard.Disconnect], Source={x:Static services:LocSource.Instance}}"
-                                       Click="OnDisconnectClick" />
-                        </StackPanel>
-                    </Grid>
+            <!-- 入耳式卡片：左右电量单元 | 中央耳机图+充电仓 | 连接按钮右下角 -->
+            <ui:Card x:Name="EarbudsCard" Padding="28,24" Visibility="Collapsed">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-                    <ui:TextBlock x:Name="StatusText" Margin="0,12,0,0"
-                                  Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="--" />
-
-                    <!-- 电量三联：左耳 / 右耳 / 充电盒 -->
-                    <Grid Margin="0,20,0,0">
+                    <Grid Grid.Row="0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="2*" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                            <ui:TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                          Text="{Binding [Battery.Left], Source={x:Static services:LocSource.Instance}}" />
-                            <TextBlock x:Name="LeftPct" FontSize="30" FontWeight="SemiBold" Text="--%" />
-                            <ProgressBar x:Name="LeftBar" Height="6" Maximum="100" Margin="0,6,0,0" />
+
+                        <!-- 左耳单元 -->
+                        <StackPanel Grid.Column="0" HorizontalAlignment="Right">
+                            <TextBlock x:Name="LeftPct" FontSize="34" FontWeight="SemiBold" Text="--%"
+                                       HorizontalAlignment="Right" />
+                            <TextBlock x:Name="LeftVoltage" HorizontalAlignment="Right" Opacity="0.7" Text="--" Margin="0,6,0,0" />
+                            <TextBlock x:Name="LeftTemp" HorizontalAlignment="Right" Opacity="0.7" Text="--" Margin="0,2,0,0" />
+                            <TextBlock x:Name="LeftStatus" HorizontalAlignment="Right" Opacity="0.7" Text="--" Margin="0,2,0,0" />
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Margin="0,0,12,0">
-                            <ui:TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                          Text="{Binding [Battery.Right], Source={x:Static services:LocSource.Instance}}" />
-                            <TextBlock x:Name="RightPct" FontSize="30" FontWeight="SemiBold" Text="--%" />
-                            <ProgressBar x:Name="RightBar" Height="6" Maximum="100" Margin="0,6,0,0" />
+
+                        <!-- 中央：左右耳机图 + 充电仓 -->
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <ui:SymbolIcon x:Name="LeftBudIcon" Symbol="SurfaceEarbuds24" FontSize="96"
+                                            RenderTransformOrigin="0.5,0.5">
+                                    <ui:SymbolIcon.RenderTransform>
+                                        <ScaleTransform ScaleX="-1" />
+                                    </ui:SymbolIcon.RenderTransform>
+                                </ui:SymbolIcon>
+                                <ui:SymbolIcon x:Name="RightBudIcon" Symbol="SurfaceEarbuds24" FontSize="96" Margin="10,0,0,0" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+                                <ui:SymbolIcon x:Name="CaseIcon" Symbol="Box24" FontSize="22" Opacity="0.85" />
+                                <TextBlock x:Name="CaseText" VerticalAlignment="Center" Margin="6,0,0,0" Opacity="0.85" Text="--" />
+                            </StackPanel>
                         </StackPanel>
-                        <StackPanel Grid.Column="2">
-                            <ui:TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                          Text="{Binding [Battery.Case], Source={x:Static services:LocSource.Instance}}" />
-                            <TextBlock x:Name="CasePct" FontSize="30" FontWeight="SemiBold" Text="--%" />
-                            <ProgressBar x:Name="CaseBar" Height="6" Maximum="100" Margin="0,6,0,0" />
+
+                        <!-- 右耳单元 -->
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Left">
+                            <TextBlock x:Name="RightPct" FontSize="34" FontWeight="SemiBold" Text="--%"
+                                       HorizontalAlignment="Left" />
+                            <TextBlock x:Name="RightVoltage" HorizontalAlignment="Left" Opacity="0.7" Text="--" Margin="0,6,0,0" />
+                            <TextBlock x:Name="RightTemp" HorizontalAlignment="Left" Opacity="0.7" Text="--" Margin="0,2,0,0" />
+                            <TextBlock x:Name="RightStatus" HorizontalAlignment="Left" Opacity="0.7" Text="--" Margin="0,2,0,0" />
                         </StackPanel>
                     </Grid>
 
-                    <StackPanel x:Name="ChargingPanel" Orientation="Horizontal" Margin="0,10,0,0" Visibility="Collapsed">
-                        <ui:SymbolIcon Symbol="BatteryCharge24" />
-                        <ui:TextBlock Margin="6,0,0,0"
-                                      Text="{Binding [Battery.Charging], Source={x:Static services:LocSource.Instance}}" />
+                    <!-- 连接/断开：卡片右下角 -->
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                        <ui:Button x:Name="EarbudsConnect" Appearance="Primary" Margin="0,0,8,0"
+                                   Content="{Binding [Dashboard.Connect], Source={x:Static services:LocSource.Instance}}"
+                                   Click="OnConnectClick" />
+                        <ui:Button x:Name="EarbudsDisconnect"
+                                   Content="{Binding [Dashboard.Disconnect], Source={x:Static services:LocSource.Instance}}"
+                                   Click="OnDisconnectClick" />
                     </StackPanel>
-                </StackPanel>
+                </Grid>
+            </ui:Card>
+
+            <!-- 头戴式卡片：单电量单元（电量/电压/温度）+ 头戴图 -->
+            <ui:Card x:Name="HeadsetCard" Padding="28,24" Visibility="Collapsed">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock x:Name="HeadPct" FontSize="34" FontWeight="SemiBold" Text="--%" />
+                            <TextBlock x:Name="HeadVoltage" Opacity="0.7" Text="--" Margin="0,6,0,0" />
+                            <TextBlock x:Name="HeadTemp" Opacity="0.7" Text="--" Margin="0,2,0,0" />
+                        </StackPanel>
+
+                        <ui:SymbolIcon Grid.Column="1" x:Name="HeadsetIcon" Symbol="Headphones24" FontSize="130"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                        <ui:Button x:Name="HeadsetConnect" Appearance="Primary" Margin="0,0,8,0"
+                                   Content="{Binding [Dashboard.Connect], Source={x:Static services:LocSource.Instance}}"
+                                   Click="OnConnectClick" />
+                        <ui:Button x:Name="HeadsetDisconnect"
+                                   Content="{Binding [Dashboard.Disconnect], Source={x:Static services:LocSource.Instance}}"
+                                   Click="OnDisconnectClick" />
+                    </StackPanel>
+                </Grid>
             </ui:Card>
         </StackPanel>
     </ScrollViewer>

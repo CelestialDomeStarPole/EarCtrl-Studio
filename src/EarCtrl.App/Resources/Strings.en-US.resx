@@ -55,6 +55,10 @@
   <data name="Battery.Right" xml:space="preserve"><value>Right</value></data>
   <data name="Battery.Case" xml:space="preserve"><value>Case</value></data>
   <data name="Battery.Charging" xml:space="preserve"><value>Charging</value></data>
+  <data name="Battery.Voltage" xml:space="preserve"><value>Voltage</value></data>
+  <data name="Battery.Temperature" xml:space="preserve"><value>Temperature</value></data>
+  <data name="Battery.Wearing" xml:space="preserve"><value>Wearing</value></data>
+  <data name="Battery.InCase" xml:space="preserve"><value>In case</value></data>
 
   <!-- Connection status (M3) -->
   <data name="Status.Connected" xml:space="preserve"><value>Connected</value></data>

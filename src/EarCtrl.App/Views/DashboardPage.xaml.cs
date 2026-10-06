@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using EarCtrl.App.Services;
+using EarCtrl.App.Views;
 using EarCtrl.Core.StateMachine;
 using EarCtrl.Core.Supervision;
 using Wpf.Ui.Controls;
@@ -8,8 +9,9 @@ using Wpf.Ui.Controls;
 namespace EarCtrl.App.Views;
 
 /// <summary>
-/// 首页设备状态卡（§5.1 映射：GalaxyBudsClient Dashboard 的电量部分）。
-/// 降噪操作在独立 AncPage（K11）；多设备点侧边栏切换全局当前设备（K10）。
+/// 设备主页（对应当前设备，K10）：顶部横向设备切换栏 + GalaxyBudsClient 风格状态卡片。
+/// 入耳式 = 左右电量单元（电量/电压/温度/佩戴状态）+ 中央耳机图 + 充电仓电量；
+/// 头戴式 = 单电量单元 + 头戴图；连接/断开在卡片右下角。其它页面跟随当前设备。
 /// </summary>
 public partial class DashboardPage : Page
 {
@@ -25,7 +27,7 @@ public partial class DashboardPage : Page
         DeviceContext.Instance.CurrentChanged += OnContextChanged;
         DeviceContext.Instance.DevicesChanged += OnContextChanged;
         DeviceContext.Instance.StateChanged += OnStateChanged;
-        Refresh();
+        RefreshAll();
     }
 
     private void Unsubscribe()
@@ -38,85 +40,123 @@ public partial class DashboardPage : Page
     private void OnContextChanged() => SafeRefresh();
     private void OnStateChanged(string brand) => SafeRefresh();
 
-    private void SafeRefresh() => Dispatcher.BeginInvoke(Refresh);
+    private void SafeRefresh() => Dispatcher.BeginInvoke(RefreshAll);
 
-    private void Refresh()
+    private void RefreshAll()
+    {
+        BuildDeviceBar();
+        RefreshCard();
+    }
+
+    // ---- 设备切换栏 ----
+
+    private void BuildDeviceBar()
+    {
+        DeviceBar.Children.Clear();
+        var current = DeviceContext.Instance.Current?.Brand;
+        foreach (var device in DeviceContext.Instance.Devices)
+        {
+            var isCurrent = device.Brand == current;
+            var chip = new Wpf.Ui.Controls.Button
+            {
+                Content = device.Model.Name,
+                Appearance = isCurrent ? ControlAppearance.Primary : ControlAppearance.Secondary,
+                Margin = new Thickness(0, 0, 8, 0),
+                MinWidth = 110,
+            };
+            var brand = device.Brand;
+            chip.Click += (_, _) => DeviceContext.Instance.SetCurrent(brand);
+            DeviceBar.Children.Add(chip);
+        }
+    }
+
+    // ---- 设备卡片 ----
+
+    private void RefreshCard()
     {
         var context = DeviceContext.Instance;
         var profile = context.Current;
 
         NoDeviceCard.Visibility = profile is null ? Visibility.Visible : Visibility.Collapsed;
-        DeviceCard.Visibility = profile is null ? Visibility.Collapsed : Visibility.Visible;
+        EarbudsCard.Visibility = profile is { FormFactor: not "overhead" } ? Visibility.Visible : Visibility.Collapsed;
+        HeadsetCard.Visibility = profile is { FormFactor: "overhead" } ? Visibility.Visible : Visibility.Collapsed;
         if (profile is null)
         {
             return;
         }
 
-        DeviceNameText.Text = profile.Model.Name;
-        ModelText.Text = profile.Model.DeviceModel;
-
         var state = context.GetState(profile.Brand);
-        StatusText.Text = StatusDisplay(state);
-        ChargingPanel.Visibility = state.Charging == true ? Visibility.Visible : Visibility.Collapsed;
+        var isOverhead = profile.FormFactor == "overhead";
+        RefreshCardButtons(isOverhead, state.IsControllable);
 
-        LeftPct.Text = Pct(state.BatteryLeft);
-        RightPct.Text = Pct(state.BatteryRight);
-        CasePct.Text = Pct(state.BatteryCase);
-        LeftBar.Value = state.BatteryLeft ?? 0;
-        RightBar.Value = state.BatteryRight ?? 0;
-        CaseBar.Value = state.BatteryCase ?? 0;
+        if (isOverhead)
+        {
+            // 头戴式：单电量单元（电量/电压/温度）
+            HeadPct.Text = Pct(state.BatteryLeft);
+            HeadVoltage.Text = Voltage(state.VoltageLeft);
+            HeadTemp.Text = Temp(state.TempLeft);
+            return;
+        }
 
-        var connected = state.IsControllable;
-        ConnectButton.IsEnabled = !connected;
-        DisconnectButton.IsEnabled = connected;
+        // 入耳式：左/右单元 + 充电仓
+        // 在盒时该耳电量报 0（华为协议行为，非真实电量），显示 --% 避免误导
+        LeftPct.Text = state.InCaseLeft == true ? "--%" : Pct(state.BatteryLeft);
+        LeftVoltage.Text = Voltage(state.VoltageLeft);
+        LeftTemp.Text = Temp(state.TempLeft);
+        LeftStatus.Text = WearState(state.InCaseLeft);
+
+        RightPct.Text = state.InCaseRight == true ? "--%" : Pct(state.BatteryRight);
+        RightVoltage.Text = Voltage(state.VoltageRight);
+        RightTemp.Text = Temp(state.TempRight);
+        RightStatus.Text = WearState(state.InCaseRight);
+
+        // 充电仓行：profile 声明支持才显示
+        var hasCase = profile.Capabilities.Battery.Case;
+        CaseIcon.Visibility = hasCase ? Visibility.Visible : Visibility.Collapsed;
+        CaseText.Visibility = hasCase ? Visibility.Visible : Visibility.Collapsed;
+        CaseText.Text = $"{Loc.Tr("Battery.Case")} {Pct(state.BatteryCase)}";
+    }
+
+    private void RefreshCardButtons(bool isOverhead, bool controllable)
+    {
+        var connect = isOverhead ? (Wpf.Ui.Controls.Button?)HeadsetConnect : EarbudsConnect;
+        var disconnect = isOverhead ? (Wpf.Ui.Controls.Button?)HeadsetDisconnect : EarbudsDisconnect;
+        connect.IsEnabled = !controllable;
+        disconnect.IsEnabled = controllable;
     }
 
     private static string Pct(int? value) => value is null ? "--%" : $"{value}%";
 
-    private static string StatusDisplay(DeviceRuntimeState state)
+    private static string Voltage(double? value) => value is null ? "--" : $"{value:0.00}V";
+
+    private static string Temp(double? value) => value is null ? "--" : $"{value:0.0}°C";
+
+    private static string WearState(bool? inCase) => inCase switch
     {
-        var text = state.LinkStatus switch
-        {
-            "connected" => Loc.Tr("Status.Connected"),
-            "connecting" => Loc.Tr("Status.Connecting"),
-            "disconnected" => Loc.Tr("Status.Disconnected"),
-            "reconnecting" => Loc.Tr("Status.Reconnecting"),
-            "failed" => Loc.Tr("Status.Failed"),
-            _ => state.SupervisorState switch
-            {
-                AgentState.Idle => Loc.Tr("Status.Idle"),
-                AgentState.Detected => Loc.Tr("Status.Detected"),
-                AgentState.AgentStarting => Loc.Tr("Status.AgentStarting"),
-                AgentState.Connecting => Loc.Tr("Status.Connecting"),
-                AgentState.Ready => Loc.Tr("Status.Ready"),
-                AgentState.Reconnecting => Loc.Tr("Status.Reconnecting"),
-                AgentState.Failed => Loc.Tr("Status.Failed"),
-                AgentState.Cooldown => Loc.Tr("Status.Cooldown"),
-                AgentState.Disabled => Loc.Tr("Status.Disabled"),
-                _ => "--",
-            },
-        };
-        return state.LinkError is { } error && state.LinkStatus == "failed"
-            ? $"{text}：{error}"
-            : text;
-    }
+        null => "--",
+        true => Loc.Tr("Battery.InCase"),
+        false => Loc.Tr("Battery.Wearing"),
+    };
+
+    // ---- 按钮 ----
 
     private async void OnConnectClick(object sender, RoutedEventArgs e)
     {
         var brand = DeviceContext.Instance.Current?.Brand;
         if (brand is null) return;
-        ConnectButton.IsEnabled = false;
         try
         {
             var error = await AgentHost.Instance.ManualConnectAsync(brand);
             if (error is not null)
             {
-                StatusText.Text = error;
+                System.Windows.MessageBox.Show(error, "EarCtrl Studio",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
             }
         }
         catch (Exception ex)
         {
-            StatusText.Text = ex.Message;
+            System.Windows.MessageBox.Show(ex.Message, "EarCtrl Studio",
+                System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
         }
     }
 
@@ -124,20 +164,19 @@ public partial class DashboardPage : Page
     {
         var brand = DeviceContext.Instance.Current?.Brand;
         if (brand is null) return;
-        DisconnectButton.IsEnabled = false;
         try
         {
             await AgentHost.Instance.ManualDisconnectAsync(brand);
         }
         catch (Exception ex)
         {
-            StatusText.Text = ex.Message;
+            System.Windows.MessageBox.Show(ex.Message, "EarCtrl Studio",
+                System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
         }
     }
 
     private void OnAddDeviceClick(object sender, RoutedEventArgs e)
     {
-        var window = new AddDeviceWindow { Owner = Window.GetWindow(this) };
-        window.ShowDialog();
+        new AddDeviceWindow { Owner = Window.GetWindow(this) }.ShowDialog();
     }
 }

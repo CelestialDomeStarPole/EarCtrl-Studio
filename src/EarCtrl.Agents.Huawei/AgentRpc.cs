@@ -4,6 +4,7 @@
 // - 事件：stateChanged / connectionChanged / heartbeat / rawPacket / log
 // - 生命周期：单实例幂等由 Program 处理；此处负责 heartbeat（静默期 30s）、孤儿退出（无客户端 30s）、L3 链路自愈。
 
+using System.IO;
 using System.Text.Json;
 using EarCtrl.Agents.Huawei.Commands;
 using EarCtrl.Agents.Huawei.Lpv2;
@@ -24,6 +25,8 @@ public sealed class AgentRpc : IAsyncDisposable
     private int? _ancMode;     // 0 normal / 1 cancellation / 2 awareness
     private int? _ancLevel;    // 0 normal / 1 comfort / 2 ultra / 3 dynamic
     private (int? Global, int? Left, int? Right, int? Case, bool? Charging)? _battery;
+    private byte? _wearLeft;   // 0127 param_5 状态字节：bit1(0x02) = 在盒
+    private byte? _wearRight;
     private bool? _lowLatency;
     private bool _rawSubscribed;
     private DateTime _lastActivity = DateTime.UtcNow;
@@ -31,7 +34,6 @@ public sealed class AgentRpc : IAsyncDisposable
     private Task? _heartbeatLoop;
     private Task? _selfHealLoop;
     private Timer? _orphanTimer;
-    private Timer? _batteryPollTimer;
     /// <summary>链路操作互斥：connect/disconnect/L3 自愈串行化，杜绝「断开被并发重连抢回」竞态。</summary>
     private readonly SemaphoreSlim _linkGate = new(1, 1);
     private int _selfHealFailures;
@@ -197,7 +199,7 @@ public sealed class AgentRpc : IAsyncDisposable
             if (!_link.Started)
             {
                 await _link.StartAsync(addr, _options.RfcommChannel);
-                StartBatteryPoll();
+                StartStateRefresh();
                 _selfHealLoop ??= Task.Run(() => SelfHealLoop(_cts.Token));
             }
             PublishConnection("connected");
@@ -260,7 +262,7 @@ public sealed class AgentRpc : IAsyncDisposable
                     {
                         await _link.StartAsync(_deviceAddress.Value, _options.RfcommChannel);
                         PublishConnection("connected");
-                        StartBatteryPoll();
+                        StartStateRefresh();
                         _selfHealSurrendered = false;
                         _selfHealFailures = 0;
                         backoff = 500;
@@ -305,7 +307,26 @@ public sealed class AgentRpc : IAsyncDisposable
 
     private void OnLinkLost()
     {
+        if (_stateRefreshing)
+        {
+            PollDebug("link lost (state refresh, suppressed)");
+            return; // 周期刷新的重连，不向 UI 闪「重连中」
+        }
+        PollDebug("link lost");
         PublishConnection("reconnecting");
+    }
+
+    /// <summary>轮询/在盒检测诊断日志（%LOCALAPPDATA%\EarCtrl\poll-debug.log）。</summary>
+    private static void PollDebug(string message)
+    {
+        try
+        {
+            File.AppendAllText(Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "EarCtrl", "poll-debug.log"),
+                $"{DateTime.Now:HH:mm:ss.fff} {message}{Environment.NewLine}");
+        }
+        catch { }
     }
 
     // ---- 方法实现 ----
@@ -393,6 +414,11 @@ public sealed class AgentRpc : IAsyncDisposable
     private Task OnBatteryFrame(HuaweiSppPackage pkg)
     {
         _battery = HuaweiCommands.ParseBattery(pkg);
+        var wear = pkg.FindParam(5);
+        _wearLeft = wear.Length >= 1 ? wear[0] : null;
+        _wearRight = wear.Length >= 2 ? wear[1] : null;
+        PollDebug($"0127 RX l={_battery.Value.Left} r={_battery.Value.Right} case={_battery.Value.Case} " +
+                  $"wear=[{_wearLeft:X2},{_wearRight:X2}] -> inCase=[{_battery.Value.Left == 0},{_battery.Value.Right == 0}]");
         PublishState();
         return Task.CompletedTask;
     }
@@ -428,24 +454,54 @@ public sealed class AgentRpc : IAsyncDisposable
         }
     }
 
-    // ---- 电量轮询兜底（协议笔记 5.1-1：0127 仅连接时推一次，发 0108 可触发再推） ----
+    // ---- 状态刷新（协议笔记 5.1-1 修正：0127 仅在 SPP 建链时推一帧，0108/0107 查询固件一律不响应；
+    //      周期性断开重连 SPP 获取最新状态，重连不影响 A2DP 音频） ----
 
-    private void StartBatteryPoll()
+    private bool _stateRefreshing;
+    private bool _stateRefreshStarted;
+
+    private void StartStateRefresh()
     {
-        _batteryPollTimer?.Dispose();
-        _batteryPollTimer = new Timer(async _ =>
+        if (_stateRefreshStarted) return;
+        _stateRefreshStarted = true;
+        _ = StateRefreshLoop(_cts.Token);
+    }
+
+    private async Task StateRefreshLoop(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
         {
             try
             {
-                if (!_link.Started) return;
-                // 读请求无直接响应，但会触发耳机再推一帧 0127；等 2s 内的电量帧即可
-                await _link.SendPackageAsync(HuaweiCommands.BatteryReadRequest(), 2000, Cmd.BatteryNotify);
+                await Task.Delay(_options.StateRefreshMs, ct);
+                if (!_link.Started || _userDisconnected) continue;
+                await _linkGate.WaitAsync(ct);
+                try
+                {
+                    if (!_link.Started || _userDisconnected) continue;
+                    _stateRefreshing = true;
+                    PollDebug("state refresh: reconnecting SPP");
+                    await _link.StopAsync();
+                    await _link.StartAsync(_deviceAddress!.Value, _options.RfcommChannel);
+                    PollDebug("state refresh: reconnected, awaiting 0127");
+                    // 建链即收 0127 → OnBatteryFrame → PublishState
+                }
+                finally
+                {
+                    // 延迟复位，覆盖重连后 0127 到达前可能出现的 LinkLost 误报窗口
+                    _ = Task.Delay(1500, ct).ContinueWith(_ => _stateRefreshing = false, ct);
+                    _linkGate.Release();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return;
             }
             catch
             {
-                // 链路断开/冲突：忽略，下轮再试
+                // 重连失败：L3 自愈路径接管，下轮再试
             }
-        }, null, _options.BatteryPollMs, _options.BatteryPollMs);
+        }
     }
 
     private void OnRawFrame(string dir, byte[] bytes)
@@ -468,6 +524,9 @@ public sealed class AgentRpc : IAsyncDisposable
             caseB = _battery.Value.Case,
             global = _battery.Value.Global,
             charging = _battery.Value.Charging,
+            // 0127 param_5 = [左状态字节, 右状态字节]，bit1(0x02) = 在盒（M3 实测三场景验证）
+            inCaseLeft = _wearLeft.HasValue && (_wearLeft.Value & 0x02) != 0,
+            inCaseRight = _wearRight.HasValue && (_wearRight.Value & 0x02) != 0,
         },
         anc = (_ancMode is null && _ancLevel is null) ? null : new
         {
@@ -539,7 +598,6 @@ public sealed class AgentRpc : IAsyncDisposable
     private async Task ShutdownAsync()
     {
         _cts.Cancel();
-        _batteryPollTimer?.Dispose();
         // 先放行退出信号再清理：清理若挂起（WinRT 取消不响应），进程仍能走 DisposeAsync 退出，
         // 不会留下「_cts 已取消但 IPC 服务还开着」的僵尸（connect 会全部立即失败 "A task was canceled."）
         _shutdownTcs.TrySetResult();
@@ -550,7 +608,6 @@ public sealed class AgentRpc : IAsyncDisposable
     {
         _cts.Cancel();
         _orphanTimer?.Dispose();
-        _batteryPollTimer?.Dispose();
         await _link.StopAsync();
         await _server.DisposeAsync();
         _cts.Dispose();
@@ -587,6 +644,6 @@ public sealed record AgentRpcOptions
     public int HeartbeatIntervalMs { get; init; } = 30_000;
     public int OrphanGraceMs { get; init; } = 30_000;
     public int RfcommChannel { get; init; } = 1;
-    /// <summary>电量轮询兜底周期（发 0108 触发 0127 推送；协议笔记 5.1-1）。</summary>
-    public int BatteryPollMs { get; init; } = 60_000;
+    /// <summary>状态刷新周期（0127 仅在 SPP 建链时推送，周期重连获取最新状态；协议笔记 4）。</summary>
+    public int StateRefreshMs { get; init; } = 15_000;
 }

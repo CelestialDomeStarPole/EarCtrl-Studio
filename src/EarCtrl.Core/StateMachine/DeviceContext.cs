@@ -65,6 +65,17 @@ public sealed class DeviceRuntimeState
     public int? BatteryGlobal { get; internal set; }
     public bool? Charging { get; internal set; }
 
+    /// <summary>电压（V）。协议上报才有值，否则 null（UI 显示 --）。头戴式复用 Left 系字段。</summary>
+    public double? VoltageLeft { get; internal set; }
+    public double? VoltageRight { get; internal set; }
+    public double? VoltageCase { get; internal set; }
+    /// <summary>温度（°C）。</summary>
+    public double? TempLeft { get; internal set; }
+    public double? TempRight { get; internal set; }
+    /// <summary>该耳是否在充电盒内（实测：入盒后 0127 该耳电量报 0；null = 未收到电量帧）。</summary>
+    public bool? InCaseLeft { get; internal set; }
+    public bool? InCaseRight { get; internal set; }
+
     public AncFiveState Anc { get; internal set; } = AncFiveState.Unknown;
     public bool? LowLatency { get; internal set; }
 
@@ -181,6 +192,13 @@ public sealed class DeviceContext
                     state.BatteryCase = Json.ReadInt(battery, "caseB") ?? state.BatteryCase;
                     state.BatteryGlobal = Json.ReadInt(battery, "global") ?? state.BatteryGlobal;
                     state.Charging = Json.ReadBool(battery, "charging") ?? state.Charging;
+                    state.VoltageLeft = Json.ReadDouble(battery, "voltageLeft") ?? state.VoltageLeft;
+                    state.VoltageRight = Json.ReadDouble(battery, "voltageRight") ?? state.VoltageRight;
+                    state.VoltageCase = Json.ReadDouble(battery, "voltageCase") ?? state.VoltageCase;
+                    state.TempLeft = Json.ReadDouble(battery, "tempLeft") ?? state.TempLeft;
+                    state.TempRight = Json.ReadDouble(battery, "tempRight") ?? state.TempRight;
+                    state.InCaseLeft = Json.ReadBool(battery, "inCaseLeft") ?? state.InCaseLeft;
+                    state.InCaseRight = Json.ReadBool(battery, "inCaseRight") ?? state.InCaseRight;
                 }
                 if (Json.GetObject(e.Payload, "anc") is { } anc)
                 {
@@ -216,6 +234,21 @@ internal static class Json
         {
             JsonValueKind.Number => v.GetInt32(),
             JsonValueKind.String when int.TryParse(v.GetString(), out var n) => n,
+            _ => null,
+        };
+    }
+
+    public static double? ReadDouble(JsonElement? element, string name)
+    {
+        if (element is not { ValueKind: JsonValueKind.Object } e ||
+            !e.TryGetProperty(name, out var v))
+        {
+            return null;
+        }
+        return v.ValueKind switch
+        {
+            JsonValueKind.Number => v.GetDouble(),
+            JsonValueKind.String when double.TryParse(v.GetString(), out var d) => d,
             _ => null,
         };
     }

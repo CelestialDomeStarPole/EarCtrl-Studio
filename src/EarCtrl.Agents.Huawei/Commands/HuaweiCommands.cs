@@ -39,6 +39,14 @@ public static class HuaweiCommands
     public static HuaweiSppPackage BatteryReadRequest() =>
         HuaweiSppPackage.ReadRequest(Cmd.BatteryRead, 1, 2, 3);
 
+    /// <summary>电量读请求（不等待响应版）：0108 触发耳机重推 0127 状态帧（轮询兜底用）。</summary>
+    public static HuaweiSppPackage BatteryReadNoWaitRequest()
+    {
+        var pkg = BatteryReadRequest();
+        pkg.ResponseId = [];
+        return pkg;
+    }
+
     /// <summary>解析电量响应/推送。w_tws=True：param2 为 左,右,盒 三个字节。</summary>
     public static (int? Global, int? Left, int? Right, int? Case, bool? Charging) ParseBattery(HuaweiSppPackage pkg)
     {

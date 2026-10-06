@@ -78,6 +78,31 @@ Console.Out.WriteLine("已连接。");
 
 switch (options.Command)
 {
+    case "monitor":
+    {
+        // 诊断：先发 0107（会话激活）再每 5s 发 0108，验证查询是否被耳机响应，Ctrl+C 退出
+        client.OnNotify(Cmd.BatteryNotify, pkg =>
+        {
+            Console.Out.WriteLine($"[0127] {pkg}");
+            return Task.CompletedTask;
+        });
+        Console.Out.WriteLine("发送 0107 会话激活…");
+        var info = await client.SendPackageAsync(HuaweiCommands.InfoReadRequest(), 3000);
+        Console.Out.WriteLine($"[0107] {(info is null ? "无响应" : info.ToString())}");
+        _ = Task.Run(async () =>
+        {
+            while (true)
+            {
+                await Task.Delay(5000);
+                try { await client.SendPackageAsync(HuaweiCommands.BatteryReadRequest(), 2000, Cmd.BatteryNotify); }
+                catch { }
+            }
+        });
+        Console.Out.WriteLine("持续监听（5s 轮询）中，Ctrl+C 退出…");
+        await Task.Delay(Timeout.Infinite);
+        break;
+    }
+
     case "battery":
         await SendAndPrintAsync(client, HuaweiCommands.BatteryReadRequest(),
             p => FmtBattery(HuaweiCommands.ParseBattery(p)), Cmd.BatteryNotify);

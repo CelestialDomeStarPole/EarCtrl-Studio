@@ -55,6 +55,10 @@
   <data name="Battery.Right" xml:space="preserve"><value>右耳</value></data>
   <data name="Battery.Case" xml:space="preserve"><value>充电盒</value></data>
   <data name="Battery.Charging" xml:space="preserve"><value>充电中</value></data>
+  <data name="Battery.Voltage" xml:space="preserve"><value>电压</value></data>
+  <data name="Battery.Temperature" xml:space="preserve"><value>温度</value></data>
+  <data name="Battery.Wearing" xml:space="preserve"><value>佩戴中</value></data>
+  <data name="Battery.InCase" xml:space="preserve"><value>在盒中</value></data>
 
   <!-- 连接状态（M3） -->
   <data name="Status.Connected" xml:space="preserve"><value>已连接</value></data>
