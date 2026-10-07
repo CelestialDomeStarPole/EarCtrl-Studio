@@ -61,15 +61,16 @@ public partial class AncPage : Page
         // 等级行常驻：仅「降噪」模式可选（未选中时虚化禁用）；动态项按 Profile 能力显示
         var levelEnabled = controllable && mode == 1;
         _suppressLevelChanged = true;
+        // 显示顺序（用户定调）：动态 / 轻度 / 均衡 / 深度（与协议 level 字节序无关）
         var options = new List<KeyValuePair<string, string>>
         {
-            new("normal", Loc.Tr("Anc.Level.Normal")),
             new("comfort", Loc.Tr("Anc.Level.Comfort")),
+            new("normal", Loc.Tr("Anc.Level.Normal")),
             new("ultra", Loc.Tr("Anc.Level.Ultra")),
         };
         if (profile?.Capabilities.AncDynamicLevel == true)
         {
-            options.Add(new("dynamic", Loc.Tr("Anc.Level.Dynamic")));
+            options.Insert(0, new("dynamic", Loc.Tr("Anc.Level.Dynamic")));
         }
         LevelCombo.ItemsSource = options;
         LevelCombo.SelectedValue = LevelTag(state?.AncLevelRaw);
