@@ -71,12 +71,12 @@ public sealed class TrayService : IDisposable
 
     private static string TrayLabel(AncFiveState state) => state switch
     {
-        AncFiveState.Ultra => Loc.Tr("Anc.Ultra"),
-        AncFiveState.General => Loc.Tr("Anc.General"),
-        AncFiveState.Cozy => Loc.Tr("Anc.Cozy"),
-        AncFiveState.Transparency => Loc.Tr("Anc.Transparency"),
+        AncFiveState.Ultra => Loc.Tr("Anc.Level.Ultra"),
+        AncFiveState.General => Loc.Tr("Anc.Level.Normal"),
+        AncFiveState.Cozy => Loc.Tr("Anc.Level.Comfort"),
+        AncFiveState.Transparency => Loc.Tr("Anc.Awareness"),
         AncFiveState.Off => Loc.Tr("Anc.Off"),
-        _ => Loc.Tr("Anc.Ultra"),
+        _ => Loc.Tr("Anc.Level.Ultra"),
     };
 
     private async Task ToggleStateAsync(AncFiveState state)

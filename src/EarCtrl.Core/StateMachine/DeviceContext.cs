@@ -80,6 +80,10 @@ public sealed class DeviceRuntimeState
     public bool? LidClosedRight { get; internal set; }
 
     public AncFiveState Anc { get; internal set; } = AncFiveState.Unknown;
+    /// <summary>华为原始模式字节（0=关闭 1=降噪 2=透传；AncPage 三按钮选中态）。</summary>
+    public int? AncModeRaw { get; internal set; }
+    /// <summary>华为原始档位字节（0=均衡 1=轻度 2=深度 3=动态；AncPage 等级下拉选中项）。</summary>
+    public int? AncLevelRaw { get; internal set; }
     public bool? LowLatency { get; internal set; }
 
     /// <summary>可下发控制命令（Agent 就绪且协议链路已连）。</summary>
@@ -208,6 +212,8 @@ public sealed class DeviceContext
                 if (Json.GetObject(e.Payload, "anc") is { } anc)
                 {
                     state.Anc = AncFiveStateMapper.FromHuawei(Json.ReadInt(anc, "mode"), Json.ReadInt(anc, "level"));
+                    state.AncModeRaw = Json.ReadInt(anc, "mode") ?? state.AncModeRaw;
+                    state.AncLevelRaw = Json.ReadInt(anc, "level") ?? state.AncLevelRaw;
                 }
                 state.LowLatency = Json.ReadBool(e.Payload, "lowLatency") ?? state.LowLatency;
                 break;

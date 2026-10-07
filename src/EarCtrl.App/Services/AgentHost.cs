@@ -112,17 +112,21 @@ public sealed class AgentHost : IAsyncDisposable
         Context.SetDevices(Context.Devices.Where(d => d.Brand != brand));
     }
 
-    /// <summary>当前设备下发降噪五态（AncPage/托盘共用）。</summary>
-    public async Task SetAncModeAsync(string brand, AncFiveState state)
+    /// <summary>当前设备下发降噪模式/等级（AncPage/托盘共用；mode=normal|cancellation|awareness，level=normal|comfort|ultra|dynamic）。</summary>
+    public async Task SetAncModeAsync(string brand, string mode, string? level = null)
     {
         var supervisor = GetSupervisor(brand) ?? throw new InvalidOperationException("设备未就绪");
-        var response = await supervisor.SendAsync("setAncMode",
-            new { mode = AncFiveStateMapper.ToIpcMode(state) });
+        object payload = level is null ? new { mode } : new { mode, level };
+        var response = await supervisor.SendAsync("setAncMode", payload);
         if (!response.Ok)
         {
             throw new InvalidOperationException(response.Error?.Message ?? "setAncMode 失败");
         }
     }
+
+    /// <summary>当前设备下发降噪五态（托盘菜单用；映射到 IPC mode/level）。</summary>
+    public Task SetAncModeAsync(string brand, AncFiveState state) =>
+        SetAncModeAsync(brand, AncFiveStateMapper.ToIpcMode(state));
 
     /// <summary>手动连接兜底（§3.1-C-1）：扫描已配对设备拿地址后直接拉起 + connect。</summary>
     public async Task<string?> ManualConnectAsync(string brand)

@@ -19,7 +19,8 @@
   "pollWhenSilent": true,
   "capabilities": {
     "battery": { "left": true, "right": true, "case": true },
-    "ancModes": ["ultra", "general", "cozy", "transparency", "off"],
+    "ancModes": ["normal", "cancellation", "awareness"],
+    "ancDynamicLevel": true,
     "ancIntensityAdjust": false,
     "equalizer": { "presets": ["低音增强", "人声", "古典", "高音增强"], "custom": true },
     "lowLatency": true,

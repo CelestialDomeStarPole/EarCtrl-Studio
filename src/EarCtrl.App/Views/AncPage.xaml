@@ -13,30 +13,35 @@
                 <Run x:Name="CurrentDeviceRun" Text="--" FontWeight="SemiBold" />
             </ui:TextBlock>
 
-            <!-- 五态大号分段（K11）：深度 / 均衡 / 轻度 / 透传 / 关闭 -->
+            <!-- 模式三选（K11）：降噪 / 透传 / 关闭 -->
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <ui:Button x:Name="BtnUltra" Grid.Column="0" Height="64" Margin="0,0,8,0" FontSize="15"
-                           Appearance="Secondary" Click="OnStateClick" Tag="Ultra"
-                           Content="{Binding [Anc.Ultra], Source={x:Static services:LocSource.Instance}}" />
-                <ui:Button x:Name="BtnGeneral" Grid.Column="1" Height="64" Margin="0,0,8,0" FontSize="15"
-                           Appearance="Secondary" Click="OnStateClick" Tag="General"
-                           Content="{Binding [Anc.General], Source={x:Static services:LocSource.Instance}}" />
-                <ui:Button x:Name="BtnCozy" Grid.Column="2" Height="64" Margin="0,0,8,0" FontSize="15"
-                           Appearance="Secondary" Click="OnStateClick" Tag="Cozy"
-                           Content="{Binding [Anc.Cozy], Source={x:Static services:LocSource.Instance}}" />
-                <ui:Button x:Name="BtnTransparency" Grid.Column="3" Height="64" Margin="0,0,8,0" FontSize="15"
-                           Appearance="Secondary" Click="OnStateClick" Tag="Transparency"
-                           Content="{Binding [Anc.Transparency], Source={x:Static services:LocSource.Instance}}" />
-                <ui:Button x:Name="BtnOff" Grid.Column="4" Height="64" FontSize="15"
-                           Appearance="Secondary" Click="OnStateClick" Tag="Off"
+                <ui:Button x:Name="BtnCancellation" Grid.Column="0" Height="64" Margin="0,0,8,0" FontSize="15"
+                           Appearance="Secondary" Click="OnModeClick" Tag="cancellation"
+                           Content="{Binding [Anc.Cancellation], Source={x:Static services:LocSource.Instance}}" />
+                <ui:Button x:Name="BtnAwareness" Grid.Column="1" Height="64" Margin="0,0,8,0" FontSize="15"
+                           Appearance="Secondary" Click="OnModeClick" Tag="awareness"
+                           Content="{Binding [Anc.Awareness], Source={x:Static services:LocSource.Instance}}" />
+                <ui:Button x:Name="BtnOff" Grid.Column="2" Height="64" FontSize="15"
+                           Appearance="Secondary" Click="OnModeClick" Tag="normal"
                            Content="{Binding [Anc.Off], Source={x:Static services:LocSource.Instance}}" />
+            </Grid>
+
+            <!-- 降噪等级：常驻显示，仅「降噪」模式可选（未选中时虚化禁用）；动态项按 Profile 能力显示 -->
+            <Grid x:Name="LevelPanel" Margin="0,16,0,0" Opacity="0.4" IsHitTestVisible="False">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" VerticalAlignment="Center"
+                              Text="{Binding [Anc.Level], Source={x:Static services:LocSource.Instance}}" />
+                <ComboBox x:Name="LevelCombo" Grid.Column="1" Width="160" MinHeight="34"
+                          SelectedValuePath="Key" DisplayMemberPath="Value"
+                          SelectionChanged="OnLevelChanged" />
             </Grid>
 
             <ui:TextBlock x:Name="HintText" Margin="0,16,0,0" Visibility="Collapsed"

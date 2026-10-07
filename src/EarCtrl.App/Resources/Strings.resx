@@ -82,11 +82,14 @@
   <data name="Status.PairedNotFound" xml:space="preserve"><value>未找到已配对的匹配设备，请先在系统蓝牙设置中配对。</value></data>
 
   <!-- 降噪五态（M3，K11） -->
-  <data name="Anc.Ultra" xml:space="preserve"><value>深度</value></data>
-  <data name="Anc.General" xml:space="preserve"><value>均衡</value></data>
-  <data name="Anc.Cozy" xml:space="preserve"><value>轻度</value></data>
-  <data name="Anc.Transparency" xml:space="preserve"><value>透传</value></data>
+  <data name="Anc.Cancellation" xml:space="preserve"><value>降噪</value></data>
+  <data name="Anc.Awareness" xml:space="preserve"><value>透传</value></data>
   <data name="Anc.Off" xml:space="preserve"><value>关闭</value></data>
+  <data name="Anc.Level" xml:space="preserve"><value>降噪等级</value></data>
+  <data name="Anc.Level.Normal" xml:space="preserve"><value>均衡</value></data>
+  <data name="Anc.Level.Comfort" xml:space="preserve"><value>轻度</value></data>
+  <data name="Anc.Level.Ultra" xml:space="preserve"><value>深度</value></data>
+  <data name="Anc.Level.Dynamic" xml:space="preserve"><value>动态</value></data>
   <data name="Anc.NotReady" xml:space="preserve"><value>设备未连接，连接后可切换降噪模式。</value></data>
 
   <!-- 托盘（M3） -->

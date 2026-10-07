@@ -82,11 +82,14 @@
   <data name="Status.PairedNotFound" xml:space="preserve"><value>No matching paired device found. Please pair it in Windows Bluetooth settings first.</value></data>
 
   <!-- ANC five states (M3, K11) -->
-  <data name="Anc.Ultra" xml:space="preserve"><value>Ultra</value></data>
-  <data name="Anc.General" xml:space="preserve"><value>Balanced</value></data>
-  <data name="Anc.Cozy" xml:space="preserve"><value>Comfort</value></data>
-  <data name="Anc.Transparency" xml:space="preserve"><value>Transparency</value></data>
+  <data name="Anc.Cancellation" xml:space="preserve"><value>Noise cancellation</value></data>
+  <data name="Anc.Awareness" xml:space="preserve"><value>Awareness</value></data>
   <data name="Anc.Off" xml:space="preserve"><value>Off</value></data>
+  <data name="Anc.Level" xml:space="preserve"><value>Noise cancelling level</value></data>
+  <data name="Anc.Level.Normal" xml:space="preserve"><value>Balanced</value></data>
+  <data name="Anc.Level.Comfort" xml:space="preserve"><value>Comfort</value></data>
+  <data name="Anc.Level.Ultra" xml:space="preserve"><value>Ultra</value></data>
+  <data name="Anc.Level.Dynamic" xml:space="preserve"><value>Dynamic</value></data>
   <data name="Anc.NotReady" xml:space="preserve"><value>Device not connected. Connect to switch noise control modes.</value></data>
 
   <!-- Tray (M3) -->

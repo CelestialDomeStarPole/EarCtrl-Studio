@@ -332,13 +332,19 @@ public sealed class AgentRpc : IAsyncDisposable
         AncMode mode;
         AncLevel? level = null;
 
-        // IPC 五态 → 华为 (mode, level)；映射见《软件实现计划》K10/§4
+        // IPC 模式名 → 华为 (mode, level)。兼容两套命名：
+        // 旧五态（托盘菜单）：off/transparency/ultra/general/cozy/dynamic；
+        // 三模式（AncPage）：normal/cancellation/awareness（cancellation 不带 level = 保持当前档位）
         switch (modeStr.ToLowerInvariant())
         {
             case "off":
+            case "normal":
                 mode = AncMode.Normal; break;
             case "transparency":
+            case "awareness":
                 mode = AncMode.Awareness; break;
+            case "cancellation":
+                mode = AncMode.Cancellation; break;
             case "ultra":
                 (mode, level) = (AncMode.Cancellation, AncLevel.Ultra); break;
             case "general":

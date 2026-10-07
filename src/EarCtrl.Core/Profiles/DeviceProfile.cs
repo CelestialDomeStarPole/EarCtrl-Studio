@@ -72,6 +72,10 @@ public sealed class Capabilities
     [JsonPropertyName("ancModes")]
     public List<string> AncModes { get; set; } = [];
 
+    /// <summary>降噪模式下支持「动态」等级（对照 OpenFreebuds per_model 的 w_cancel_dynamic 名单：SE 4/5i/6i/Pro/Pro 3/Pro 5/Studio/Lace Pro 2）。</summary>
+    [JsonPropertyName("ancDynamicLevel")]
+    public bool AncDynamicLevel { get; set; }
+
     [JsonPropertyName("equalizer")]
     public EqualizerCaps Equalizer { get; set; } = new();
 
