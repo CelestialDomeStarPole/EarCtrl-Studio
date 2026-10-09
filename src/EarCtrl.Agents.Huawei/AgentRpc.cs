@@ -152,6 +152,10 @@ public sealed class AgentRpc : IAsyncDisposable
             case "setWindNoise":
                 return await SetWindNoiseAsync(request.Params);
 
+            case "queryWindNoise":
+                await QueryWindNoiseAsync();
+                return new { sent = true };
+
             case "setPollMs":
                 SetPollMs(ReadInt(request.Params, "ms")
                     ?? throw new ArgumentException("缺少 ms"));
@@ -417,11 +421,24 @@ public sealed class AgentRpc : IAsyncDisposable
     private async Task<object> SetWindNoiseAsync(JsonElement? parameters)
     {
         var enabled = ReadBool(parameters, "enabled");
-        // 耳机以同构 2B B4 帧回报新状态；超时认为写已发出（沿用 SetAncModeAsync 的兜底模式）
-        var resp = await _link.SendPackageAsync(HuaweiCommands.WindNoiseSetRequest(enabled), 5000, Cmd.MbbFeatureSwitch);
-        _windNoise = (resp is not null && HuaweiCommands.ParseWindNoise(resp) is { } state) ? state : enabled;
-        PublishState();
+        // 「2B70 使能 → 写入」成对发送（polltest 定论：查询/回报通道必须以 2B70 开路，裸发命令不回帧）。
+        // no-wait：写完即回，状态由回报帧异步驱动（OnWindNoiseFrame），UI 负责 pending 虚化与超时
+        await _link.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+        await Task.Delay(200);
+        if (!_link.Started) return StateSnapshot();
+        await _link.SendPackageAsync(HuaweiCommands.WindNoiseSetNoWaitRequest(enabled));
         return StateSnapshot();
+    }
+
+    /// <summary>防风噪状态查询（「2B70 使能 → 读请求」成对）：回报帧异步驱动 stateChanged；
+    /// App 在 pending 等待期间周期调用，直到耳机回报期望值。</summary>
+    private async Task QueryWindNoiseAsync()
+    {
+        if (!_link.Started) throw new InvalidOperationException("链路未连接");
+        await _link.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+        await Task.Delay(200);
+        if (!_link.Started) return;
+        await _link.SendPackageAsync(HuaweiCommands.WindNoiseReadNoWaitRequest());
     }
 
     // ---- 链路帧处理 → 状态 + 推送 ----
@@ -509,14 +526,17 @@ public sealed class AgentRpc : IAsyncDisposable
         try
         {
             await Task.Delay(200, ct); // 等建链完全稳定
-            // 使能查询通道后立即拿一帧全量状态
+            // 使能查询通道后立即拿一帧全量状态（每个查询都以 2B70 开路——polltest 定论）
             await _link.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
             await Task.Delay(150, ct);
             if (!_link.Started) return;
             await _link.SendPackageAsync(HuaweiCommands.BatteryReadNoWaitRequest());
             await Task.Delay(150, ct);
             if (!_link.Started) return;
-            // 防风噪状态查询（2B B4 读请求；回帧/超时都不致命，UI 未取到前显示未知态）
+            // 防风噪状态查询（2B B4 读请求，同样 2B70 开路；回帧/超时都不致命，UI 未取到前显示未知态）
+            await _link.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+            await Task.Delay(150, ct);
+            if (!_link.Started) return;
             await _link.SendPackageAsync(HuaweiCommands.WindNoiseReadNoWaitRequest());
         }
         catch (OperationCanceledException) { }

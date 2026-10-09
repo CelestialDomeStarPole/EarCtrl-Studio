@@ -32,6 +32,8 @@ public sealed class HuaweiSppClient : ISppLink
     private readonly Spp.RfcommTransport _transport = new();
     private readonly ConcurrentDictionary<string, TaskCompletionSource<HuaweiSppPackage>> _pending = new();
     private readonly ConcurrentDictionary<string, Func<HuaweiSppPackage, Task>> _notifyHandlers = new();
+    /// <summary>发送互斥：RFCOMM 流写入必须串行，并发写会导致帧字节交织损坏。</summary>
+    private readonly SemaphoreSlim _sendGate = new(1, 1);
     private CancellationTokenSource? _recvCts;
     private Task? _recvTask;
 
@@ -120,7 +122,15 @@ public sealed class HuaweiSppClient : ISppLink
         var bytes = pkg.ToBytes();
         LogDebug?.Invoke($"TX {pkg}");
         RawFrame?.Invoke("TX", bytes);
-        await _transport.TransportStream.WriteAsync(bytes);
+        await _sendGate.WaitAsync();
+        try
+        {
+            await _transport.TransportStream.WriteAsync(bytes);
+        }
+        finally
+        {
+            _sendGate.Release();
+        }
     }
 
     // ---- 接收循环（对应 _loop_recv/__recv_pacakge） ----

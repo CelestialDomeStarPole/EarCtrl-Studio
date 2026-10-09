@@ -85,13 +85,8 @@ public sealed class DeviceRuntimeState
     /// <summary>华为原始档位字节（0=均衡 1=轻度 2=深度 3=动态；AncPage 等级下拉选中项）。</summary>
     public int? AncLevelRaw { get; internal set; }
     public bool? LowLatency { get; internal set; }
-    /// <summary>防风噪开关（华为 2B B4 子功能总线回报；null = 未取得状态）。</summary>
+    /// <summary>防风噪开关（华为 2B B4 子功能总线回报；null = 未取得状态）。全局状态：所有非动态降噪档共用。</summary>
     public bool? WindNoise { get; internal set; }
-    /// <summary>
-    /// 防风噪按降噪档位独立记忆（App 侧缓存，键 = AncLevelRaw：0=均衡 1=轻度 2=深度；动态档必开不入缓存）。
-    /// 耳机只有一个全局防风噪开关，切档时由 App 自动应用对应档位的记忆值（用户定调的交互规则）。
-    /// </summary>
-    public System.Collections.Concurrent.ConcurrentDictionary<int, bool> WindNoiseByLevel { get; } = new();
 
     /// <summary>可下发控制命令（Agent 就绪且协议链路已连）。</summary>
     public bool IsControllable => SupervisorState == AgentState.Ready && LinkStatus == "connected";

@@ -24,8 +24,8 @@ public sealed class AgentHost : IAsyncDisposable
     private IReadOnlyList<DeviceProfile> _profiles = [];
     private PollingDeviceDetector? _detector;
     private bool _started;
-    /// <summary>防风噪策略边沿追踪：记录上次应用策略的降噪档位（null=非降噪模式），防止 stateChanged 回环。</summary>
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int?> _windNoiseAppliedLevel = new();
+    /// <summary>动态档防风噪强制：记录上次降噪档位（边沿检测，切入动态档时下发一次强制开）。</summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int?> _windNoiseLastLevel = new();
 
     public DeviceContext Context => DeviceContext.Instance;
 
@@ -134,7 +134,7 @@ public sealed class AgentHost : IAsyncDisposable
     public Task SetAncModeAsync(string brand, AncFiveState state) =>
         SetAncModeAsync(brand, AncFiveStateMapper.ToIpcMode(state));
 
-    /// <summary>当前设备下发防风噪开关（AncPage/切档策略共用；IPC setWindNoise）。成功后写入当前档位的独立记忆。</summary>
+    /// <summary>当前设备下发防风噪开关（AncPage/动态档强制共用；IPC setWindNoise）。全局状态：所有非动态档共用。</summary>
     public async Task SetWindNoiseAsync(string brand, bool enabled)
     {
         var supervisor = GetSupervisor(brand) ?? throw new InvalidOperationException("设备未就绪");
@@ -143,17 +143,22 @@ public sealed class AgentHost : IAsyncDisposable
         {
             throw new InvalidOperationException(response.Error?.Message ?? "setWindNoise 失败");
         }
-        var level = Context.GetState(brand).AncLevelRaw;
-        if (level is >= 0 and <= 2)
+    }
+
+    /// <summary>当前设备查询防风噪状态（IPC queryWindNoise；「2B70 使能 → 读请求」成对，回报帧异步驱动 stateChanged）。</summary>
+    public async Task QueryWindNoiseAsync(string brand)
+    {
+        var supervisor = GetSupervisor(brand) ?? throw new InvalidOperationException("设备未就绪");
+        var response = await supervisor.SendAsync("queryWindNoise");
+        if (!response.Ok)
         {
-            Context.GetState(brand).WindNoiseByLevel[level.Value] = enabled;
+            throw new InvalidOperationException(response.Error?.Message ?? "queryWindNoise 失败");
         }
     }
 
     /// <summary>
-    /// 防风噪档位策略（用户定调的交互规则）：状态变化时按「降噪档位边沿」触发——
-    /// 动态档(3)防风噪必开；轻度/均衡/深度各自记忆独立开关状态，切档自动应用记忆值；
-    /// 首次遇到某档位时记录耳机当前状态作为该档初始值。仅降噪模式下管理。
+    /// 防风噪动态档强制（用户定调）：防风噪为全局状态，唯一例外是降噪+动态档必开——
+    /// 切入动态档边沿时自动下发一次 setWindNoise(true)；切出再切回会再次触发。
     /// </summary>
     private void OnDeviceStateChanged(string brand)
     {
@@ -161,42 +166,23 @@ public sealed class AgentHost : IAsyncDisposable
         if (profile?.Capabilities.AncWindNoise != true) return;
         var state = Context.GetState(brand);
         var level = state.AncLevelRaw;
-        if (state.AncModeRaw != 1 || level is null)
+        var last = _windNoiseLastLevel.TryGetValue(brand, out var l) ? l : null;
+        _windNoiseLastLevel[brand] = level;
+        if (state.AncModeRaw == 1 && level == 3 && last != 3 && state.WindNoise != true)
         {
-            _windNoiseAppliedLevel[brand] = null;
-            return;
+            _ = ForceWindNoiseOnAsync(brand);
         }
-        if (_windNoiseAppliedLevel.TryGetValue(brand, out var last) && last == level) return;
-        _windNoiseAppliedLevel[brand] = level;
-        _ = ApplyWindNoisePolicyAsync(brand, level.Value);
     }
 
-    private async Task ApplyWindNoisePolicyAsync(string brand, int level)
+    private async Task ForceWindNoiseOnAsync(string brand)
     {
-        var state = Context.GetState(brand);
-        bool target;
-        if (level == 3)
-        {
-            target = true; // 动态档防风噪必开
-        }
-        else if (state.WindNoiseByLevel.TryGetValue(level, out var cached))
-        {
-            target = cached;
-        }
-        else
-        {
-            // 首次遇到该档位：以耳机当前状态作为初始记忆
-            if (state.WindNoise is { } current) state.WindNoiseByLevel[level] = current;
-            return;
-        }
-        if (state.WindNoise == target) return;
         try
         {
-            await SetWindNoiseAsync(brand, target);
+            await SetWindNoiseAsync(brand, true);
         }
         catch
         {
-            // Agent 未就绪/链路瞬断：忽略，下次档位边沿重新应用
+            // Agent 未就绪/链路瞬断：忽略，下次切入动态档边沿再触发
         }
     }
 

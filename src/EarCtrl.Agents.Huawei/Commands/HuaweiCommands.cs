@@ -170,6 +170,15 @@ public static class HuaweiCommands
         HuaweiSppPackage.ChangeRequest(Cmd.MbbFeatureSwitch,
             (1, [WindNoiseFeatureId]), (2, enabled ? [0x01] : [0x00]));
 
+    /// <summary>防风噪开关写入（不等待确认帧版）：IPC setWindNoise 用——写完即回，
+    /// 状态由耳机回报帧异步驱动；避免快速切换时确认等待堆积触发 App 侧 IPC 8s 超时。</summary>
+    public static HuaweiSppPackage WindNoiseSetNoWaitRequest(bool enabled)
+    {
+        var pkg = WindNoiseSetRequest(enabled);
+        pkg.ResponseId = [];
+        return pkg;
+    }
+
     /// <summary>
     /// 解析防风噪回报/确认帧（param1=[0x1D]，param2=[状态]）。
     /// 耳机回报帧与写帧同构（官方 t1→l2 解析路径），状态不是本功能时返回 null。

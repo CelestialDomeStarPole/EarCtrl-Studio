@@ -332,6 +332,61 @@ switch (options.Command)
             p => HuaweiCommands.ParseLowLatency(p) is { } v ? (v ? "开启" : "关闭") : null);
         break;
 
+    case "windnoise":
+    {
+        // 防风噪（2B B4 子功能总线 0x1D）真机诊断：官方抓包（monitor3 留档）中官方 App 发过
+        // 「2B B4 | 01 01 1D | 02 00」读请求，但抓包无任何 2B B4 回报帧——T0026 是否回报待本实验实锤
+        var t0 = DateTime.Now;
+        client.RawFrame += (dir, bytes) =>
+            Console.Out.WriteLine($"{DateTime.Now - t0:mm\\:ss\\.fff} [{dir}] {Convert.ToHexString(bytes)}");
+        client.OnNotify(Cmd.MbbFeatureSwitch, pkg =>
+        {
+            var parsed = HuaweiCommands.ParseWindNoise(pkg);
+            Console.Out.WriteLine(
+                $"      ↳ 2BB4 回报 param1={Convert.ToHexString(pkg.FindParam(1))} " +
+                $"param2={Convert.ToHexString(pkg.FindParam(2))} 解析={(parsed.HasValue ? $"防风噪={(parsed.Value ? "开" : "关")}" : "非防风噪/解析失败")}");
+            return Task.CompletedTask;
+        });
+
+        Console.Out.WriteLine("== ① 2B70 查询使能帧 ==");
+        await client.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+        await Task.Delay(300);
+
+        Console.Out.WriteLine("== ② 防风噪读请求（初始状态），观察 3s ==");
+        await client.SendPackageAsync(HuaweiCommands.WindNoiseReadNoWaitRequest());
+        await Task.Delay(3000);
+
+        Console.Out.WriteLine("== ③ 先切降噪模式（2B04 → cancellation，等 2B2A 确认）==");
+        var ancResp = await client.SendPackageAsync(
+            HuaweiCommands.AncSetModeRequest(AncMode.Cancellation), 5000, Cmd.AncRead);
+        Console.Out.WriteLine(ancResp is not null
+            ? $"   ANC 确认: {ancResp}"
+            : "   [未收到 ANC 确认帧]");
+        await Task.Delay(1000);
+
+        Console.Out.WriteLine("== ④ 降噪模式下读防风噪，观察 3s ==");
+        await client.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+        await Task.Delay(200);
+        await client.SendPackageAsync(HuaweiCommands.WindNoiseReadNoWaitRequest());
+        await Task.Delay(3000);
+
+        Console.Out.WriteLine("== ⑤ 降噪模式下写防风噪=开，随后每 1s 读回一次共 8 次（每次 2B70 开路）==");
+        Console.Out.WriteLine("   *** 实验结束后请用官方智慧音频 App 核对防风噪是否真的被打开 ***");
+        await client.SendPackageAsync(HuaweiCommands.WindNoiseSetNoWaitRequest(true));
+        for (var i = 1; i <= 8; i++)
+        {
+            await Task.Delay(1000);
+            await client.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+            await Task.Delay(200);
+            await client.SendPackageAsync(HuaweiCommands.WindNoiseReadNoWaitRequest());
+            Console.Out.WriteLine($"   -- 第 {i} 次读回已发出 --");
+        }
+
+        Console.Out.WriteLine("== ⑥ 判据：降噪模式下读回=开 → 防风噪写依赖降噪模式生效（App 需按模式门控）；" +
+                              "仍全静默 → 写命令格式/语义另有问题 ==");
+        break;
+    }
+
     default:
         PrintUsage();
         return 2;
@@ -383,6 +438,7 @@ static void PrintUsage()
           monitor                        纯监听全量帧采集（零轮询）
           monitor2 / monitor3            官方初始化序列重放实验（结论已留档协议笔记 §7）
           polltest                       「2B70 使能 → 0108 查询」成对轮询回帧率诊断
+          windnoise                      防风噪（2B B4/0x1D）读/写/回报帧观测诊断
         """);
 }
 
