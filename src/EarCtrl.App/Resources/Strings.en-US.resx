@@ -90,6 +90,7 @@
   <data name="Anc.Level.Comfort" xml:space="preserve"><value>Comfort</value></data>
   <data name="Anc.Level.Ultra" xml:space="preserve"><value>Ultra</value></data>
   <data name="Anc.Level.Dynamic" xml:space="preserve"><value>Dynamic</value></data>
+  <data name="Anc.WindNoise" xml:space="preserve"><value>Wind noise reduction</value></data>
   <data name="Anc.NotReady" xml:space="preserve"><value>Device not connected. Connect to switch noise control modes.</value></data>
 
   <!-- Tray (M3) -->

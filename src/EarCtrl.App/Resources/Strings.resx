@@ -90,6 +90,7 @@
   <data name="Anc.Level.Comfort" xml:space="preserve"><value>轻度</value></data>
   <data name="Anc.Level.Ultra" xml:space="preserve"><value>深度</value></data>
   <data name="Anc.Level.Dynamic" xml:space="preserve"><value>动态</value></data>
+  <data name="Anc.WindNoise" xml:space="preserve"><value>防风噪</value></data>
   <data name="Anc.NotReady" xml:space="preserve"><value>设备未连接，连接后可切换降噪模式。</value></data>
 
   <!-- 托盘（M3） -->

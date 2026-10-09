@@ -29,6 +29,7 @@ public sealed class AgentRpc : IAsyncDisposable
     private byte? _p5Left;
     private byte? _p5Right;
     private bool? _lowLatency;
+    private bool? _windNoise;
     private bool _rawSubscribed;
     private DateTime _lastActivity = DateTime.UtcNow;
     private DateTime _lastHeartbeat = DateTime.UtcNow;
@@ -63,6 +64,7 @@ public sealed class AgentRpc : IAsyncDisposable
         _link.OnNotify(Cmd.KeepAlive, _ => Task.CompletedTask);    // 2B70 回包（param1=[01]）吞掉，避免未注册告警
         _link.OnNotify(Cmd.AncRead, OnAncFrame);       // 写确认帧 2B2A
         _link.OnNotify(Cmd.AncChangeEvent, OnAncChangeEventAsync); // 耳机按键事件 2B03（param1=[level,mode]）
+        _link.OnNotify(Cmd.MbbFeatureSwitch, OnWindNoiseFrame);   // 2B B4 子功能总线回报帧（param1=[0x1D] 防风噪）
     }
 
     /// <summary>优雅退出信号（Program await 它后返回退出码 0）。</summary>
@@ -146,6 +148,9 @@ public sealed class AgentRpc : IAsyncDisposable
 
             case "setLowLatency":
                 return await SetLowLatencyAsync(request.Params);
+
+            case "setWindNoise":
+                return await SetWindNoiseAsync(request.Params);
 
             case "setPollMs":
                 SetPollMs(ReadInt(request.Params, "ms")
@@ -409,6 +414,16 @@ public sealed class AgentRpc : IAsyncDisposable
         return StateSnapshot();
     }
 
+    private async Task<object> SetWindNoiseAsync(JsonElement? parameters)
+    {
+        var enabled = ReadBool(parameters, "enabled");
+        // 耳机以同构 2B B4 帧回报新状态；超时认为写已发出（沿用 SetAncModeAsync 的兜底模式）
+        var resp = await _link.SendPackageAsync(HuaweiCommands.WindNoiseSetRequest(enabled), 5000, Cmd.MbbFeatureSwitch);
+        _windNoise = (resp is not null && HuaweiCommands.ParseWindNoise(resp) is { } state) ? state : enabled;
+        PublishState();
+        return StateSnapshot();
+    }
+
     // ---- 链路帧处理 → 状态 + 推送 ----
 
     private Task OnBatteryFrame(HuaweiSppPackage pkg)
@@ -428,6 +443,17 @@ public sealed class AgentRpc : IAsyncDisposable
         {
             _ancMode = (int)state.Mode;
             _ancLevel = (int)state.Level;
+            PublishStateIfChanged();
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnWindNoiseFrame(HuaweiSppPackage pkg)
+    {
+        // param1 非 0x1D 的 2B B4 帧 = 其他子功能（0x1C AI 音效等），忽略
+        if (HuaweiCommands.ParseWindNoise(pkg) is { } enabled)
+        {
+            _windNoise = enabled;
             PublishStateIfChanged();
         }
         return Task.CompletedTask;
@@ -488,6 +514,10 @@ public sealed class AgentRpc : IAsyncDisposable
             await Task.Delay(150, ct);
             if (!_link.Started) return;
             await _link.SendPackageAsync(HuaweiCommands.BatteryReadNoWaitRequest());
+            await Task.Delay(150, ct);
+            if (!_link.Started) return;
+            // 防风噪状态查询（2B B4 读请求；回帧/超时都不致命，UI 未取到前显示未知态）
+            await _link.SendPackageAsync(HuaweiCommands.WindNoiseReadNoWaitRequest());
         }
         catch (OperationCanceledException) { }
         catch { /* 初始化失败不致命：轮询下一拍兜底 */ }
@@ -554,6 +584,7 @@ public sealed class AgentRpc : IAsyncDisposable
             level = _ancLevel?.ToString(),
         },
         lowLatency = _lowLatency,
+        windNoise = _windNoise,
     };
 
     private void PublishState()

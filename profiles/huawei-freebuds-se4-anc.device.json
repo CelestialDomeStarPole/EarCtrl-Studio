@@ -21,6 +21,7 @@
     "battery": { "left": true, "right": true, "case": true },
     "ancModes": ["normal", "cancellation", "awareness"],
     "ancDynamicLevel": true,
+    "ancWindNoise": true,
     "ancIntensityAdjust": false,
     "equalizer": { "presets": ["低音增强", "人声", "古典", "高音增强"], "custom": true },
     "lowLatency": true,

@@ -13,13 +13,19 @@ namespace EarCtrl.App.Services;
 public sealed class AgentHost : IAsyncDisposable
 {
     public static AgentHost Instance { get; } = new();
-    private AgentHost() { }
+    private AgentHost()
+    {
+        // 防风噪档位策略（AgentHost 生命周期 = App 生命周期，订阅一次即可）
+        Context.StateChanged += OnDeviceStateChanged;
+    }
 
     private readonly object _gate = new();
     private readonly Dictionary<string, AgentSupervisor> _supervisors = new();
     private IReadOnlyList<DeviceProfile> _profiles = [];
     private PollingDeviceDetector? _detector;
     private bool _started;
+    /// <summary>防风噪策略边沿追踪：记录上次应用策略的降噪档位（null=非降噪模式），防止 stateChanged 回环。</summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int?> _windNoiseAppliedLevel = new();
 
     public DeviceContext Context => DeviceContext.Instance;
 
@@ -127,6 +133,72 @@ public sealed class AgentHost : IAsyncDisposable
     /// <summary>当前设备下发降噪五态（托盘菜单用；映射到 IPC mode/level）。</summary>
     public Task SetAncModeAsync(string brand, AncFiveState state) =>
         SetAncModeAsync(brand, AncFiveStateMapper.ToIpcMode(state));
+
+    /// <summary>当前设备下发防风噪开关（AncPage/切档策略共用；IPC setWindNoise）。成功后写入当前档位的独立记忆。</summary>
+    public async Task SetWindNoiseAsync(string brand, bool enabled)
+    {
+        var supervisor = GetSupervisor(brand) ?? throw new InvalidOperationException("设备未就绪");
+        var response = await supervisor.SendAsync("setWindNoise", new { enabled });
+        if (!response.Ok)
+        {
+            throw new InvalidOperationException(response.Error?.Message ?? "setWindNoise 失败");
+        }
+        var level = Context.GetState(brand).AncLevelRaw;
+        if (level is >= 0 and <= 2)
+        {
+            Context.GetState(brand).WindNoiseByLevel[level.Value] = enabled;
+        }
+    }
+
+    /// <summary>
+    /// 防风噪档位策略（用户定调的交互规则）：状态变化时按「降噪档位边沿」触发——
+    /// 动态档(3)防风噪必开；轻度/均衡/深度各自记忆独立开关状态，切档自动应用记忆值；
+    /// 首次遇到某档位时记录耳机当前状态作为该档初始值。仅降噪模式下管理。
+    /// </summary>
+    private void OnDeviceStateChanged(string brand)
+    {
+        var profile = GetProfile(brand);
+        if (profile?.Capabilities.AncWindNoise != true) return;
+        var state = Context.GetState(brand);
+        var level = state.AncLevelRaw;
+        if (state.AncModeRaw != 1 || level is null)
+        {
+            _windNoiseAppliedLevel[brand] = null;
+            return;
+        }
+        if (_windNoiseAppliedLevel.TryGetValue(brand, out var last) && last == level) return;
+        _windNoiseAppliedLevel[brand] = level;
+        _ = ApplyWindNoisePolicyAsync(brand, level.Value);
+    }
+
+    private async Task ApplyWindNoisePolicyAsync(string brand, int level)
+    {
+        var state = Context.GetState(brand);
+        bool target;
+        if (level == 3)
+        {
+            target = true; // 动态档防风噪必开
+        }
+        else if (state.WindNoiseByLevel.TryGetValue(level, out var cached))
+        {
+            target = cached;
+        }
+        else
+        {
+            // 首次遇到该档位：以耳机当前状态作为初始记忆
+            if (state.WindNoise is { } current) state.WindNoiseByLevel[level] = current;
+            return;
+        }
+        if (state.WindNoise == target) return;
+        try
+        {
+            await SetWindNoiseAsync(brand, target);
+        }
+        catch
+        {
+            // Agent 未就绪/链路瞬断：忽略，下次档位边沿重新应用
+        }
+    }
 
     /// <summary>手动连接兜底（§3.1-C-1）：扫描已配对设备拿地址后直接拉起 + connect。</summary>
     public async Task<string?> ManualConnectAsync(string brand)

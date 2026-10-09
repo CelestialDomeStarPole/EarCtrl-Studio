@@ -76,6 +76,10 @@ public sealed class Capabilities
     [JsonPropertyName("ancDynamicLevel")]
     public bool AncDynamicLevel { get; set; }
 
+    /// <summary>支持防风噪开关（华为 2B B4 子功能总线 0x1D；官方智慧音频 App 降噪页实装，OpenFreebuds 未支持）。</summary>
+    [JsonPropertyName("ancWindNoise")]
+    public bool AncWindNoise { get; set; }
+
     [JsonPropertyName("equalizer")]
     public EqualizerCaps Equalizer { get; set; } = new();
 

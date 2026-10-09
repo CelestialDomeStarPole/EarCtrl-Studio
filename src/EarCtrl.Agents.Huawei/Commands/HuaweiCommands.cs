@@ -17,6 +17,9 @@ public static class Cmd
     public static readonly byte[] EqRead = [0x2B, 0x4A];
     public static readonly byte[] EqWrite = [0x2B, 0x49];
     public static readonly byte[] KeepAlive = [0x2B, 0x70];      // 查询使能/保活帧（真机实测：不发它，0108 一律不回帧）
+    /// <summary>子功能开关总线（官方 MbbAbilityManager：param1=[子功能号]，param2=[开关状态]）。
+    /// 0x1D=防风噪（官方 FeatureMbbState.WIND_NOISE_PREVENTION，featureKey=29）。</summary>
+    public static readonly byte[] MbbFeatureSwitch = [0x2B, 0xB4];
 }
 
 public enum AncMode
@@ -143,5 +146,39 @@ public static class HuaweiCommands
     {
         var v = pkg.FindParam(2);
         return v.Length == 1 ? (sbyte)v[0] : null;
+    }
+
+    // ---- 防风噪（官方智慧音频 App 逆向：2B B4 子功能总线，协议笔记 §7.8） ----
+
+    /// <summary>防风噪子功能号（官方 FeatureMbbState.WIND_NOISE_PREVENTION，featureKey=29）。</summary>
+    public const byte WindNoiseFeatureId = 0x1D;
+
+    /// <summary>防风噪状态读请求：2B B4 | 01 01 1D | 02 00（param2 空值=读）。</summary>
+    public static HuaweiSppPackage WindNoiseReadRequest() =>
+        HuaweiSppPackage.ChangeRequest(Cmd.MbbFeatureSwitch, (1, [WindNoiseFeatureId]), (2, []));
+
+    /// <summary>读请求不等待响应版（会话初始化用，回帧走 OnNotify）。</summary>
+    public static HuaweiSppPackage WindNoiseReadNoWaitRequest()
+    {
+        var pkg = WindNoiseReadRequest();
+        pkg.ResponseId = [];
+        return pkg;
+    }
+
+    /// <summary>防风噪开关写入：2B B4 | 01 01 1D | 02 01 [01=开 / 00=关]。</summary>
+    public static HuaweiSppPackage WindNoiseSetRequest(bool enabled) =>
+        HuaweiSppPackage.ChangeRequest(Cmd.MbbFeatureSwitch,
+            (1, [WindNoiseFeatureId]), (2, enabled ? [0x01] : [0x00]));
+
+    /// <summary>
+    /// 解析防风噪回报/确认帧（param1=[0x1D]，param2=[状态]）。
+    /// 耳机回报帧与写帧同构（官方 t1→l2 解析路径），状态不是本功能时返回 null。
+    /// </summary>
+    public static bool? ParseWindNoise(HuaweiSppPackage pkg)
+    {
+        var feature = pkg.FindParam(1);
+        if (feature.Length != 1 || feature[0] != WindNoiseFeatureId) return null;
+        var state = pkg.FindParam(2);
+        return state.Length == 1 ? state[0] == 0x01 : null;
     }
 }

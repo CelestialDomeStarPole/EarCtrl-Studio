@@ -44,6 +44,17 @@
                           SelectionChanged="OnLevelChanged" />
             </Grid>
 
+            <!-- 防风噪：仅降噪模式显示（动态档虚化必开，其余档位独立记忆），策略逻辑在 AgentHost -->
+            <Grid x:Name="WindNoisePanel" Margin="0,16,0,0" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" VerticalAlignment="Center"
+                              Text="{Binding [Anc.WindNoise], Source={x:Static services:LocSource.Instance}}" />
+                <ui:ToggleSwitch x:Name="WindNoiseToggle" Grid.Column="1" Click="OnWindNoiseToggled" />
+            </Grid>
+
             <ui:TextBlock x:Name="HintText" Margin="0,16,0,0" Visibility="Collapsed"
                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                           Text="{Binding [Anc.NotReady], Source={x:Static services:LocSource.Instance}}" />
