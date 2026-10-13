@@ -380,8 +380,12 @@ public sealed class AgentRpc : IAsyncDisposable
             _ => HuaweiCommands.AncSetModeRequest(mode),
         };
 
-        // 耳机以 2B2A 帧确认（param1=[level, mode]），超时也认为写已发出（M1 实测行为）
-        var resp = await _link.SendPackageAsync(pkg, 5000, Cmd.AncRead);
+        // 「2B70 使能 → 写入」成对：查询/回报通道必须开路，否则 2B2A 确认帧可能丢失（防风噪同款教训）。
+        // 链路未连接时此发送直接抛异常（连接未建立）→ IPC 报错，不假装成功
+        await _link.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+        await Task.Delay(200);
+        // 确认等待 2s：2B2A 正常 ~100ms 即回；超时大概率是静默期，不再干等 5s
+        var resp = await _link.SendPackageAsync(pkg, 2000, Cmd.AncRead);
         if (resp is not null && HuaweiCommands.ParseAnc(resp) is { } state)
         {
             _ancLevel = (int)state.Level;
@@ -389,11 +393,40 @@ public sealed class AgentRpc : IAsyncDisposable
         }
         else
         {
+            // 确认超时：立即按写入值发布（写已发出；原实现干等 5s，期间 UI 一直显示旧模式），
+            // 并启动查询探针拿真状态校正（回报帧经 OnAncFrame 自动发布）
             _ancMode = (int)mode;
             if (level.HasValue) _ancLevel = (int)level.Value;
+            if (_link.Started) _ = AncConfirmProbeAsync();
         }
         PublishState();
         return StateSnapshot();
+    }
+
+    /// <summary>ANC 确认探针：写入未获 2B2A 确认时，以 1s 间隔「2B70 → 2B2A 读」探测真状态（最多 5 次），
+    /// 回报帧经 OnAncFrame 自动发布校正；链路断开/用户断开即停止。</summary>
+    private async Task AncConfirmProbeAsync()
+    {
+        for (var i = 0; i < 5; i++)
+        {
+            try
+            {
+                await Task.Delay(1000, _cts.Token);
+                if (!_link.Started || _userDisconnected) return;
+                await _link.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+                await Task.Delay(200);
+                if (!_link.Started || _userDisconnected) return;
+                await _link.SendPackageAsync(HuaweiCommands.AncReadNoWaitRequest());
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch
+            {
+                // 链路瞬断：L3 自愈接管
+            }
+        }
     }
 
     private async Task<object> SetEqAsync(JsonElement? parameters)
@@ -538,6 +571,14 @@ public sealed class AgentRpc : IAsyncDisposable
             await Task.Delay(150, ct);
             if (!_link.Started) return;
             await _link.SendPackageAsync(HuaweiCommands.WindNoiseReadNoWaitRequest());
+            await Task.Delay(150, ct);
+            if (!_link.Started) return;
+            // ANC 状态查询（2B2A 读请求，2B70 开路）：连接即确认当前降噪模式/档位，
+            // 回报帧经 OnNotify(2B2A) 驱动快照（回帧/超时都不致命，轮询与确认帧兜底）
+            await _link.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+            await Task.Delay(150, ct);
+            if (!_link.Started) return;
+            await _link.SendPackageAsync(HuaweiCommands.AncReadNoWaitRequest());
         }
         catch (OperationCanceledException) { }
         catch { /* 初始化失败不致命：轮询下一拍兜底 */ }

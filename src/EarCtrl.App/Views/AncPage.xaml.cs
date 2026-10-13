@@ -19,6 +19,12 @@ public partial class AncPage : Page
     private int _levelPendingGeneration; // 切档代际（守卫并发清除）
     /// <summary>切档完成后等级行/防风噪行的最短虚化保持时长（2B2A 确认 ~100ms，无保持则交叉虚化不可见）。</summary>
     private const int LevelPendingHoldMs = 800;
+
+    // ---- 模式切换 pending（用户定调交互）：点击模式按钮后其它两个按钮虚化禁改，
+    //      直到耳机确认新模式（Refresh 检测 state.mode == 点击的模式）或 8s 超时 ----
+    private string? _modePendingTag;
+    private int _modePendingGeneration;
+    private const int ModePendingTimeoutMs = 8000;
     /// <summary>错误/超时提示（连接未就绪提示之外的消息；下次成功操作或状态收敛时清除）。</summary>
     private string? _hintMessage;
 
@@ -65,6 +71,28 @@ public partial class AncPage : Page
         var controllable = state is { IsControllable: true };
         var mode = state?.AncModeRaw;
 
+        // 模式切换 pending 解除判定（先于按钮渲染计算）：耳机确认的模式 == 用户点击的模式
+        if (_modePendingTag is not null && ModeTag(mode) == _modePendingTag)
+        {
+            _modePendingTag = null;
+            _modePendingGeneration++;
+        }
+        var modePendingTag = _modePendingTag;
+
+        // 模式三按钮选中态（华为原始字节：0=关闭 1=降噪 2=透传）——跟随耳机确认的真状态；
+        // 模式切换 pending 期间其它按钮虚化禁改（点击中的按钮保持可点）；
+        // 切换等级 pending 期间（同为 2B04 写，模式+档位一起在途）三个按钮全部虚化禁改
+        foreach (var button in new Wpf.Ui.Controls.Button[] { BtnCancellation, BtnAwareness, BtnOff })
+        {
+            var tag = (string)button.Tag;
+            var selected = controllable && tag == ModeTag(mode);
+            var locked = controllable &&
+                         ((modePendingTag is not null && tag != modePendingTag) || _levelPending);
+            button.Appearance = selected ? ControlAppearance.Primary : ControlAppearance.Secondary;
+            button.IsEnabled = controllable && !locked;
+            button.Opacity = locked ? 0.4 : 1.0;
+        }
+
         // 防风噪 pending 解除判定（必须先于 levelEnabled/windLocked 计算：否则确认帧到达的那次
         // Refresh 会用清除前的旧值渲染等级行，且此后无新事件再触发 Refresh → 等级行永久卡虚化）
         if (_windNoisePendingTarget.HasValue && state?.WindNoise == _windNoisePendingTarget.Value)
@@ -75,18 +103,10 @@ public partial class AncPage : Page
             _hintMessage = null;
         }
         var windPending = _windNoisePendingTarget.HasValue;
-        // 互相锁定：切档飞行中或防风噪 pending 时，等级行与防风噪行同时虚化禁改（防并发写打架）
-        var windLocked = windPending || _levelPending;
-
-        // 模式三按钮选中态（华为原始字节：0=关闭 1=降噪 2=透传）——跟随耳机确认的真状态
-        foreach (var button in new Wpf.Ui.Controls.Button[] { BtnCancellation, BtnAwareness, BtnOff })
-        {
-            var selected = controllable && (string)button.Tag == ModeTag(mode);
-            button.Appearance = selected ? ControlAppearance.Primary : ControlAppearance.Secondary;
-            button.IsEnabled = controllable;
-        }
-
-        // 等级行常驻：仅「降噪」模式可选（未选中时虚化禁用）；动态项按 Profile 能力显示
+        // 互相锁定：模式切换/切档飞行中或防风噪 pending 时，等级行与防风噪行同时虚化禁改——
+        // 目的是在途写命令互斥（防止确认期间用户再下指令导致冲突），与切换方向无关
+        var modePending = modePendingTag is not null;
+        var windLocked = windPending || _levelPending || modePending;
         var levelEnabled = controllable && mode == 1 && !windLocked;
         _suppressLevelChanged = true;
         // 显示顺序（用户定调）：动态 / 轻度 / 均衡 / 深度（与协议 level 字节序无关）
@@ -166,15 +186,44 @@ public partial class AncPage : Page
             return;
         }
 
+        // 进入模式切换 pending：其它两个模式按钮虚化禁改，直到耳机确认新模式（Refresh 检测）或 8s 超时
         _hintMessage = null;
+        _modePendingGeneration++;
+        _modePendingTag = mode;
+        var generation = _modePendingGeneration;
+        Refresh();
         try
         {
             await AgentHost.Instance.SetAncModeAsync(brand, mode);
+            ModePendingWatchdogAsync(generation); // async void 即发即忘
         }
         catch (Exception ex)
         {
+            _modePendingTag = null;
+            _modePendingGeneration++;
             _hintMessage = ex.Message;
+            Refresh();
         }
+    }
+
+    /// <summary>模式切换 pending 超时（8s 上限）：耳机未确认新模式 → 提示失败并解锁。</summary>
+    private async void ModePendingWatchdogAsync(int generation)
+    {
+        try
+        {
+            await Task.Delay(ModePendingTimeoutMs);
+        }
+        catch
+        {
+            return;
+        }
+        if (generation != _modePendingGeneration || _modePendingTag is null)
+        {
+            return; // 已被确认/新请求解除
+        }
+        _modePendingTag = null;
+        _modePendingGeneration++;
+        _hintMessage = Loc.Tr("Anc.SetTimeout");
         Refresh();
     }
 

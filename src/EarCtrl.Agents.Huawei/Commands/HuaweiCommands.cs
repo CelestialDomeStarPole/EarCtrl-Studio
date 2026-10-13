@@ -86,6 +86,14 @@ public static class HuaweiCommands
     public static HuaweiSppPackage AncReadRequest() =>
         HuaweiSppPackage.ReadRequest(Cmd.AncRead, 1, 2);
 
+    /// <summary>ANC 状态读请求（不等待响应版）：2B70 使能帧开路后发送，回报帧经 OnNotify(2B2A) 驱动状态。</summary>
+    public static HuaweiSppPackage AncReadNoWaitRequest()
+    {
+        var pkg = AncReadRequest();
+        pkg.ResponseId = [];
+        return pkg;
+    }
+
     /// <summary>解析 ANC 读取响应：param1 = [level, mode] 两字节。</summary>
     public static (AncMode Mode, AncLevel Level)? ParseAnc(HuaweiSppPackage pkg)
     {
