@@ -63,6 +63,11 @@
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
                                 <ui:SymbolIcon x:Name="CaseIcon" Symbol="Box24" FontSize="22" Opacity="0.85" />
                                 <TextBlock x:Name="CaseText" VerticalAlignment="Center" Margin="6,0,0,0" Opacity="0.85" Text="--" />
+                                <!-- 充电盒充电中标识（param3 第三字节 >0），仅盒子插电充电时显示 -->
+                                <TextBlock x:Name="CaseChargingText" VerticalAlignment="Center" Margin="8,0,0,0"
+                                           Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                                           Visibility="Collapsed"
+                                           Text="{Binding [Battery.Charging], Source={x:Static services:LocSource.Instance}}" />
                             </StackPanel>
                         </StackPanel>
 

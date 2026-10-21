@@ -23,11 +23,14 @@ public sealed class AgentRpc : IAsyncDisposable
     private bool _userDisconnected;
     private int? _ancMode;     // 0 normal / 1 cancellation / 2 awareness
     private int? _ancLevel;    // 0 normal / 1 comfort / 2 ultra / 3 dynamic
-    private (int? Global, int? Left, int? Right, int? Case, bool? Charging)? _battery;
+    private (int? Global, int? Left, int? Right, int? Case, bool? Charging, bool? CaseCharging)? _battery;
     // 0127/0108 param_5 = [左状态字节, 右状态字节]（真机实测定论）：
     // 0x00=佩戴(出盒)、0x01=开盖在仓、0x02=关盖在仓
     private byte? _p5Left;
     private byte? _p5Right;
+    /// <summary>最后一次「可信」的充电盒充电状态：仅在盒子非关盖状态时更新（真机实测：合盖后耳机不再做充电检测，
+    /// param3 恒 00 00 00，重连亦无效）；合盖期间保留该值，避免把「未检测」误当成「未充电」。</summary>
+    private bool? _caseCharging;
     private bool? _lowLatency;
     private bool? _windNoise;
     private bool _rawSubscribed;
@@ -479,10 +482,22 @@ public sealed class AgentRpc : IAsyncDisposable
     private Task OnBatteryFrame(HuaweiSppPackage pkg)
     {
         // 忠实上报原始电量（含关盖在仓时的 0 占位）——占位场景的显示处理在 App 端 UI 规则完成
-        _battery = HuaweiCommands.ParseBattery(pkg);
+        var parsed = HuaweiCommands.ParseBattery(pkg);
         var wear = pkg.FindParam(5);
-        _p5Left = wear.Length >= 1 ? (byte?)wear[0] : null;   // param_5[0] = 左耳
-        _p5Right = wear.Length >= 2 ? (byte?)wear[1] : null;  // param_5[1] = 右耳
+        var p5Left = wear.Length >= 1 ? (byte?)wear[0] : null;   // param_5[0] = 左耳
+        var p5Right = wear.Length >= 2 ? (byte?)wear[1] : null;  // param_5[1] = 右耳
+
+        // 合盖时不更新充电检测（真机实测：关盖插电 param3 恒 00 00 00，重连亦相同）：
+        // 只要任一只耳朵处于「关盖在仓」(0x02)，就保留上一次可信的充电盒状态
+        var caseClosed = p5Left == 0x02 || p5Right == 0x02;
+        if (!caseClosed && parsed.CaseCharging.HasValue)
+        {
+            _caseCharging = parsed.CaseCharging;
+        }
+
+        _battery = parsed;
+        _p5Left = p5Left;
+        _p5Right = p5Right;
         PublishStateIfChanged();
         return Task.CompletedTask;
     }
@@ -631,6 +646,9 @@ public sealed class AgentRpc : IAsyncDisposable
             caseB = _battery.Value.Case,
             global = _battery.Value.Global,
             charging = _battery.Value.Charging,
+            // param3 = [左耳, 右耳, 充电盒] 充电标志（官方 BatteryResult：值 >0 = 充电中）；
+            // 合盖时耳机不检测，使用最后一次可信值（_caseCharging）
+            caseCharging = _caseCharging,
             // param_5 = [左状态, 右状态]：0x00=佩戴(出盒)，0x01=开盖在仓，0x02=关盖在仓（真机实测定论）
             inCaseLeft = _p5Left.HasValue && (_p5Left.Value & 0x03) != 0,
             inCaseRight = _p5Right.HasValue && (_p5Right.Value & 0x03) != 0,

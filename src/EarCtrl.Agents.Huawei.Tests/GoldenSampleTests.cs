@@ -51,26 +51,29 @@ public class GoldenSampleTests
     public void GoldenBatteryResponse_ParsesLevels()
     {
         var pkg = HuaweiSppPackage.FromBytes(Hex(GetBatteryRespBaseHex));
-        var (global, left, right, caseLevel, charging) = HuaweiCommands.ParseBattery(pkg);
+        var (global, left, right, caseLevel, charging, caseCharging) = HuaweiCommands.ParseBattery(pkg);
 
         Assert.Equal(0x40, global);
         Assert.Equal(0x10, left);
         Assert.Equal(0x20, right);
         Assert.Equal(0x30, caseLevel);
         Assert.True(charging);
+        // param3 = 00 01 00 → 右耳充电中，充电盒（第三字节）未充电
+        Assert.False(caseCharging);
     }
 
     [Fact]
     public void GoldenBatteryResponseLegacy_HasNoTwsLevels()
     {
         var pkg = HuaweiSppPackage.FromBytes(Hex(GetBatteryRespLegacyHex));
-        var (global, left, right, caseLevel, charging) = HuaweiCommands.ParseBattery(pkg);
+        var (global, left, right, caseLevel, charging, caseCharging) = HuaweiCommands.ParseBattery(pkg);
 
         Assert.Equal(0x40, global);
         Assert.Null(left);
         Assert.Null(right);
         Assert.Null(caseLevel);
         Assert.False(charging);
+        Assert.Null(caseCharging);
     }
 
     [Fact]

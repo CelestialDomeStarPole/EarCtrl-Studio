@@ -53,10 +53,15 @@ public static class HuaweiCommands
     }
 
     /// <summary>解析电量响应/推送。w_tws=True：param2 为 左,右,盒 三个字节。</summary>
-    public static (int? Global, int? Left, int? Right, int? Case, bool? Charging) ParseBattery(HuaweiSppPackage pkg)
+    /// <remarks>
+    /// param3 = [左耳, 右耳, 充电盒] 充电标志（官方 BatteryResult 解析 → BatteryPercent.setChargingState，
+    /// UI 判据 chargingState[i] &gt; 0 = 充电中）。<see cref="CaseCharging"/> 取第三个字节。
+    /// </remarks>
+    public static (int? Global, int? Left, int? Right, int? Case, bool? Charging, bool? CaseCharging)
+        ParseBattery(HuaweiSppPackage pkg)
     {
         int? global = null, left = null, right = null, caseLevel = null;
-        bool? charging = null;
+        bool? charging = null, caseCharging = null;
 
         var p1 = pkg.FindParam(1);
         if (p1.Length == 1)
@@ -75,10 +80,14 @@ public static class HuaweiCommands
         var p3 = pkg.FindParam(3);
         if (p3.Length > 0)
         {
-            charging = p3.Contains((byte)0x01);
+            charging = p3.Any(b => b > 0);
+            if (p3.Length >= 3)
+            {
+                caseCharging = p3[2] > 0;
+            }
         }
 
-        return (global, left, right, caseLevel, charging);
+        return (global, left, right, caseLevel, charging, caseCharging);
     }
 
     // ---- ANC（handler/anc.py，SE 4 ANC: w_cancel_lvl=True, w_cancel_dynamic=True） ----

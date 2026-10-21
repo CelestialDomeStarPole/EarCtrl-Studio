@@ -114,11 +114,14 @@ public partial class DashboardPage : Page
         RightTemp.Text = Temp(state.TempRight);
         RightStatus.Text = WearState(state.InCaseRight, rightLid);
 
-        // 充电仓行：profile 声明支持才显示
+        // 充电仓行：profile 声明支持才显示；充电中标识按 param3 第三字节（CaseCharging）
         var hasCase = profile.Capabilities.Battery.Case;
         CaseIcon.Visibility = hasCase ? Visibility.Visible : Visibility.Collapsed;
         CaseText.Visibility = hasCase ? Visibility.Visible : Visibility.Collapsed;
         CaseText.Text = $"{Loc.Tr("Battery.Case")} {Pct(state.BatteryCase)}";
+        CaseChargingText.Visibility = hasCase && state.CaseCharging == true
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private void RefreshCardButtons(bool isOverhead, bool controllable)

@@ -121,6 +121,110 @@ switch (options.Command)
         break;
     }
 
+    case "chargetest":
+    {
+        // 关盖充电状态诊断：分 4 阶段提示操作，每 1s「2B70 → 0108」并打印 param3（充电状态）/param5（在仓）。
+        // 输出同时写 UTF-8 日志文件（.trae/documents/chargetest.log），避免 PowerShell 重定向乱码。
+        var logPath = System.IO.Path.Combine(
+            Environment.CurrentDirectory, ".trae", "documents", "chargetest.log");
+        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(logPath)!);
+        var logWriter = new System.IO.StreamWriter(logPath, append: false, System.Text.Encoding.UTF8)
+        {
+            AutoFlush = true,
+        };
+        void Log(string line)
+        {
+            Console.Out.WriteLine(line);
+            logWriter.WriteLine(line);
+        }
+
+        var t0 = DateTime.Now;
+        client.RawFrame += (dir, bytes) => Log($"{DateTime.Now - t0:mm\\:ss\\.fff} [{dir}] {Convert.ToHexString(bytes)}");
+        void PrintBattery(HuaweiSppPackage pkg)
+        {
+            Log($"      ↳ {FmtBattery(HuaweiCommands.ParseBattery(pkg))} " +
+                $"param3={Convert.ToHexString(pkg.FindParam(3))} param5={Convert.ToHexString(pkg.FindParam(5))}");
+        }
+        client.OnNotify(Cmd.BatteryNotify, pkg => { PrintBattery(pkg); return Task.CompletedTask; });
+        client.OnNotify(Cmd.BatteryRead, pkg => { PrintBattery(pkg); return Task.CompletedTask; });
+        _ = Task.Run(async () =>
+        {
+            var phases = new (int Seconds, string Tip)[]
+            {
+                (12, "PHASE 1/4 OPEN CASE, UNPLUGGED"),
+                (12, "PHASE 2/4 OPEN CASE, PLUGGED IN"),
+                (12, "PHASE 3/4 CLOSED CASE, UNPLUGGED"),
+                (12, "PHASE 4/4 CLOSED CASE, PLUGGED IN"),
+            };
+            foreach (var (seconds, tip) in phases)
+            {
+                Log($"=== {tip} — operate now, hold {seconds}s ===");
+                for (var i = 0; i < seconds; i++)
+                {
+                    try { await client.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB]))); }
+                    catch { /* 链路瞬断 */ }
+                    await Task.Delay(200);
+                    try { await client.SendPackageAsync(HuaweiCommands.BatteryReadNoWaitRequest()); }
+                    catch { /* 链路瞬断 */ }
+                    await Task.Delay(800);
+                }
+            }
+            Log("=== DONE. If no [RX] in PHASE 3/4 → earbuds stop answering when case closed; " +
+                "if param3 stays 00 00 00 → charging not updated while closed ===");
+            Log($"[log saved] {logPath}");
+        });
+        await Task.Delay(Timeout.Infinite);
+        break;
+    }
+
+    case "caseplug":
+    {
+        // 合盖插电 + 重连刷新诊断：验证合盖是否不检测充电、重连首帧是否带有效 param3。
+        // 运行前请保持「关盖 + 已插电」。
+        var t0 = DateTime.Now;
+        client.RawFrame += (dir, bytes) =>
+            Console.Out.WriteLine($"{DateTime.Now - t0:mm\\:ss\\.fff} [{dir}] {Convert.ToHexString(bytes)}");
+        void PrintBattery(HuaweiSppPackage pkg)
+        {
+            Console.Out.WriteLine(
+                $"      ↳ {FmtBattery(HuaweiCommands.ParseBattery(pkg))} " +
+                $"param3={Convert.ToHexString(pkg.FindParam(3))} param5={Convert.ToHexString(pkg.FindParam(5))}");
+        }
+        client.OnNotify(Cmd.BatteryNotify, pkg => { PrintBattery(pkg); return Task.CompletedTask; });
+        client.OnNotify(Cmd.BatteryRead, pkg => { PrintBattery(pkg); return Task.CompletedTask; });
+        _ = Task.Run(async () =>
+        {
+            async Task PollForAsync(int seconds)
+            {
+                for (var i = 0; i < seconds; i++)
+                {
+                    try { await client.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB]))); }
+                    catch { /* 链路瞬断 */ }
+                    await Task.Delay(200);
+                    try { await client.SendPackageAsync(HuaweiCommands.BatteryReadNoWaitRequest()); }
+                    catch { /* 链路瞬断 */ }
+                    await Task.Delay(800);
+                }
+            }
+
+            Console.Out.WriteLine("=== A: CLOSED + PLUGGED, poll 10s (expect param5=xx02, param3=?) ===");
+            await PollForAsync(10);
+
+            Console.Out.WriteLine("=== B: RECONNECT ===");
+            try { await client.StopAsync(); } catch { }
+            await Task.Delay(1000);
+            try { await client.StartAsync(address); }
+            catch (Exception ex) { Console.Out.WriteLine($"[reconnect failed] {ex.Message}"); }
+            await Task.Delay(1000);
+
+            Console.Out.WriteLine("=== C: after reconnect, poll 10s ===");
+            await PollForAsync(10);
+            Console.Out.WriteLine("=== DONE ===");
+        });
+        await Task.Delay(Timeout.Infinite);
+        break;
+    }
+
     case "monitor3":
     {
         // 完整复刻实验：按官方 App 连接后 5.77~8.0s 的全部 78 帧按序重放，然后纯监听。
@@ -408,8 +512,9 @@ static async Task SendAndPrintAsync(HuaweiSppClient client, HuaweiSppPackage req
     Console.Out.WriteLine(text is null ? $"[解析失败] {resp}" : $"结果: {text}");
 }
 
-static string FmtBattery((int? Global, int? Left, int? Right, int? Case, bool? Charging) b) =>
-    $"左={Pct(b.Left)} 右={Pct(b.Right)} 盒={Pct(b.Case)} 全局={Pct(b.Global)} 充电中={(b.Charging == true ? "是" : "否")}";
+static string FmtBattery((int? Global, int? Left, int? Right, int? Case, bool? Charging, bool? CaseCharging) b) =>
+    $"左={Pct(b.Left)} 右={Pct(b.Right)} 盒={Pct(b.Case)} 全局={Pct(b.Global)} " +
+    $"充电中={(b.Charging == true ? "是" : "否")} 盒充电={(b.CaseCharging == true ? "是" : "否")}";
 
 static string Pct(int? v) => v is null ? "?" : $"{v}%";
 
@@ -438,6 +543,8 @@ static void PrintUsage()
           monitor                        纯监听全量帧采集（零轮询）
           monitor2 / monitor3            官方初始化序列重放实验（结论已留档协议笔记 §7）
           polltest                       「2B70 使能 → 0108 查询」成对轮询回帧率诊断
+          chargetest                     充电盒充电状态分阶段诊断（开盖/关盖 × 插电/不插电）
+          caseplug                       合盖插电 + 重连刷新诊断（运行前保持关盖插电）
           windnoise                      防风噪（2B B4/0x1D）读/写/回报帧观测诊断
         """);
 }

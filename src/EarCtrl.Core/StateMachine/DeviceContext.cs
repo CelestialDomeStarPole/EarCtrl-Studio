@@ -64,6 +64,8 @@ public sealed class DeviceRuntimeState
     public int? BatteryCase { get; internal set; }
     public int? BatteryGlobal { get; internal set; }
     public bool? Charging { get; internal set; }
+    /// <summary>充电盒是否正在充电（电量帧 param3 第三字节 &gt;0；官方 BatteryResult chargingState[2]）。</summary>
+    public bool? CaseCharging { get; internal set; }
 
     /// <summary>电压（V）。协议上报才有值，否则 null（UI 显示 --）。头戴式复用 Left 系字段。</summary>
     public double? VoltageLeft { get; internal set; }
@@ -201,6 +203,7 @@ public sealed class DeviceContext
                     state.BatteryCase = Json.ReadInt(battery, "caseB") ?? state.BatteryCase;
                     state.BatteryGlobal = Json.ReadInt(battery, "global") ?? state.BatteryGlobal;
                     state.Charging = Json.ReadBool(battery, "charging") ?? state.Charging;
+                    state.CaseCharging = Json.ReadBool(battery, "caseCharging") ?? state.CaseCharging;
                     state.VoltageLeft = Json.ReadDouble(battery, "voltageLeft") ?? state.VoltageLeft;
                     state.VoltageRight = Json.ReadDouble(battery, "voltageRight") ?? state.VoltageRight;
                     state.VoltageCase = Json.ReadDouble(battery, "voltageCase") ?? state.VoltageCase;
