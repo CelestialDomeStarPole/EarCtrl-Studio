@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using EarCtrl.App.Services;
 using EarCtrl.App.Views;
+using EarCtrl.Core.Profiles;
 using EarCtrl.Core.StateMachine;
 using EarCtrl.Core.Supervision;
 using Wpf.Ui.Controls;
@@ -114,14 +115,28 @@ public partial class DashboardPage : Page
         RightTemp.Text = Temp(state.TempRight);
         RightStatus.Text = WearState(state.InCaseRight, rightLid);
 
-        // 充电仓行：profile 声明支持才显示；充电中标识按 param3 第三字节（CaseCharging）
-        var hasCase = profile.Capabilities.Battery.Case;
-        CaseIcon.Visibility = hasCase ? Visibility.Visible : Visibility.Collapsed;
-        CaseText.Visibility = hasCase ? Visibility.Visible : Visibility.Collapsed;
+        // 页内模块能力门（Profile 唯一权威）：未连接 Unknown = 显示虚化，连接后 Unavailable = 隐藏。
+        // 充电盒行（dashboard.battery.case）整体控制；充电中标识仍按 param3 第三字节（CaseCharging）
+        var connected = state.IsControllable;
+        ApplyAvailability(LeftPanel,
+            FeatureGate.Evaluate(FeatureModules.DashboardBatteryLeft, profile, connected));
+        ApplyAvailability(RightPanel,
+            FeatureGate.Evaluate(FeatureModules.DashboardBatteryRight, profile, connected));
+        var caseAvail = FeatureGate.Evaluate(FeatureModules.DashboardBatteryCase, profile, connected);
+        ApplyAvailability(CasePanel, caseAvail);
         CaseText.Text = $"{Loc.Tr("Battery.Case")} {Pct(state.BatteryCase)}";
-        CaseChargingText.Visibility = hasCase && state.CaseCharging == true
+        CaseChargingText.Visibility = caseAvail != FeatureAvailability.Unavailable && state.CaseCharging == true
             ? Visibility.Visible
             : Visibility.Collapsed;
+    }
+
+    /// <summary>能力门结果落到控件：不支持 → 隐藏；未知（未连接）→ 显示但虚化。</summary>
+    private static void ApplyAvailability(FrameworkElement element, FeatureAvailability availability)
+    {
+        element.Visibility = availability == FeatureAvailability.Unavailable
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        element.Opacity = availability == FeatureAvailability.Unknown ? 0.4 : 1.0;
     }
 
     private void RefreshCardButtons(bool isOverhead, bool controllable)

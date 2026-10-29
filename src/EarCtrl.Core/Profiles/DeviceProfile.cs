@@ -72,9 +72,12 @@ public sealed class Capabilities
     [JsonPropertyName("ancModes")]
     public List<string> AncModes { get; set; } = [];
 
-    /// <summary>降噪模式下支持「动态」等级（对照 OpenFreebuds per_model 的 w_cancel_dynamic 名单：SE 4/5i/6i/Pro/Pro 3/Pro 5/Studio/Lace Pro 2）。</summary>
-    [JsonPropertyName("ancDynamicLevel")]
-    public bool AncDynamicLevel { get; set; }
+    /// <summary>
+    /// 降噪模式下可选等级（值为协议等级 tag：cozy=轻度、normal=均衡、ultra=深度、dynamic=动态）。
+    /// 空列表 = 设备不支持等级调节（页面隐藏等级行）。这是等级的**唯一权威声明**。
+    /// </summary>
+    [JsonPropertyName("ancLevels")]
+    public List<string> AncLevels { get; set; } = [];
 
     /// <summary>支持防风噪开关（华为 2B B4 子功能总线 0x1D；官方智慧音频 App 降噪页实装，OpenFreebuds 未支持）。</summary>
     [JsonPropertyName("ancWindNoise")]

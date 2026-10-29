@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using EarCtrl.App.Services;
+using EarCtrl.Core.Profiles;
 using EarCtrl.Core.StateMachine;
 using Wpf.Ui.Controls;
 
@@ -8,8 +9,8 @@ namespace EarCtrl.App.Views;
 
 /// <summary>
 /// 降噪页（K11）：模式三选（降噪/透传/关闭）+ 降噪等级下拉（仅降噪模式可用），
-/// 作用于 K10 全局当前设备。动态等级选项按 Profile 能力（ancDynamicLevel，
-/// 对照 OpenFreebuds per_model 的 w_cancel_dynamic 名单）显示。
+/// 作用于 K10 全局当前设备。页内模块按 Profile 能力裁剪（module id 见 <see cref="FeatureModules"/>）：
+/// 未连接 = 全部显示但虚化，连接后不支持的直接隐藏（用户 2026-10-27 定调）。
 /// </summary>
 public partial class AncPage : Page
 {
@@ -79,18 +80,34 @@ public partial class AncPage : Page
         }
         var modePendingTag = _modePendingTag;
 
-        // 模式三按钮选中态（华为原始字节：0=关闭 1=降噪 2=透传）——跟随耳机确认的真状态；
+        // ---- 页内模块能力门（Profile 为唯一权威；未连接 Unknown = 显示虚化，连接后 Unavailable = 隐藏）----
+        var levelAvail = FeatureGate.Evaluate(FeatureModules.AncLevel, profile, controllable);
+        var dynamicAvail = FeatureGate.Evaluate(FeatureModules.AncLevelDynamic, profile, controllable);
+        var windAvail = FeatureGate.Evaluate(FeatureModules.AncWindNoise, profile, controllable);
+
+        // 模式三按钮：按 anc.mode.* 裁剪；选中态跟随耳机真状态（华为原始字节：0=关闭 1=降噪 2=透传）；
         // 模式切换 pending 期间其它按钮虚化禁改（点击中的按钮保持可点）；
         // 切换等级 pending 期间（同为 2B04 写，模式+档位一起在途）三个按钮全部虚化禁改
-        foreach (var button in new Wpf.Ui.Controls.Button[] { BtnCancellation, BtnAwareness, BtnOff })
+        var modeButtons = new (Wpf.Ui.Controls.Button Button, string ModuleId, ColumnDefinition Column)[]
         {
+            (BtnCancellation, FeatureModules.AncModeCancellation, ModeCol0),
+            (BtnAwareness, FeatureModules.AncModeAwareness, ModeCol1),
+            (BtnOff, FeatureModules.AncModeNormal, ModeCol2),
+        };
+        foreach (var (button, moduleId, column) in modeButtons)
+        {
+            var avail = FeatureGate.Evaluate(moduleId, profile, controllable);
+            var hidden = avail == FeatureAvailability.Unavailable;
+            button.Visibility = hidden ? Visibility.Collapsed : Visibility.Visible;
+            column.Width = hidden ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+
             var tag = (string)button.Tag;
             var selected = controllable && tag == ModeTag(mode);
             var locked = controllable &&
                          ((modePendingTag is not null && tag != modePendingTag) || _levelPending);
             button.Appearance = selected ? ControlAppearance.Primary : ControlAppearance.Secondary;
-            button.IsEnabled = controllable && !locked;
-            button.Opacity = locked ? 0.4 : 1.0;
+            button.IsEnabled = avail == FeatureAvailability.Available && controllable && !locked;
+            button.Opacity = avail == FeatureAvailability.Unknown || locked ? 0.4 : 1.0;
         }
 
         // 防风噪 pending 解除判定（必须先于 levelEnabled/windLocked 计算：否则确认帧到达的那次
@@ -107,7 +124,10 @@ public partial class AncPage : Page
         // 目的是在途写命令互斥（防止确认期间用户再下指令导致冲突），与切换方向无关
         var modePending = modePendingTag is not null;
         var windLocked = windPending || _levelPending || modePending;
-        var levelEnabled = controllable && mode == 1 && !windLocked;
+        LevelPanel.Visibility = levelAvail == FeatureAvailability.Unavailable
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        var levelEnabled = levelAvail == FeatureAvailability.Available && controllable && mode == 1 && !windLocked;
         _suppressLevelChanged = true;
         // 显示顺序（用户定调）：动态 / 轻度 / 均衡 / 深度（与协议 level 字节序无关）
         var options = new List<KeyValuePair<string, string>>
@@ -116,7 +136,8 @@ public partial class AncPage : Page
             new("normal", Loc.Tr("Anc.Level.Normal")),
             new("ultra", Loc.Tr("Anc.Level.Ultra")),
         };
-        if (profile?.Capabilities.AncDynamicLevel == true)
+        // 动态项：未连接（Unknown）也显示（先全部显示虚化），连接后按 Profile 无动态则隐藏该项
+        if (dynamicAvail != FeatureAvailability.Unavailable)
         {
             options.Insert(0, new("dynamic", Loc.Tr("Anc.Level.Dynamic")));
         }
@@ -128,21 +149,21 @@ public partial class AncPage : Page
         LevelCombo.IsEnabled = levelEnabled;
 
         // 防风噪行（用户定调交互规则）：全局状态（所有非动态档共用）——
-        // 未连接/Agent 未就绪时显示但虚化禁用；连接后仅「降噪」模式显示，透传/关闭模式隐藏；
-        // 动态档虚化且必开（不可点，切入时由 AgentHost 强制下发）；下发后 pending 虚化禁改，
-        // 直到耳机回报期望值（20s 上限，期间每 2s 查询一次）
-        var windNoiseSupported = profile?.Capabilities.AncWindNoise == true;
-        var showWindNoise = windNoiseSupported && (!controllable || mode == 1);
+        // 未连接/能力未知时显示但虚化禁用；连接后不支持（Profile）则隐藏；
+        // 支持时仅「降噪」模式显示，透传/关闭模式隐藏；动态档虚化且必开（不可点，切入时由 AgentHost 强制下发）；
+        // 下发后 pending 虚化禁改，直到耳机回报期望值（20s 上限，期间每 2s 查询一次）
+        var showWindNoise = windAvail != FeatureAvailability.Unavailable && (!controllable || mode == 1);
         WindNoisePanel.Visibility = showWindNoise ? Visibility.Visible : Visibility.Collapsed;
         if (showWindNoise)
         {
+            var windKnownAvailable = windAvail == FeatureAvailability.Available;
             var dynamicLevel = controllable && state?.AncLevelRaw == 3;
             _suppressWindNoiseToggled = true;
             WindNoiseToggle.IsChecked = dynamicLevel || state?.WindNoise == true;
-            WindNoiseToggle.IsEnabled = controllable && !dynamicLevel && !windLocked;
+            WindNoiseToggle.IsEnabled = windKnownAvailable && controllable && !dynamicLevel && !windLocked;
             _suppressWindNoiseToggled = false;
-            WindNoisePanel.Opacity = !controllable || dynamicLevel || windLocked ? 0.4 : 1.0;
-            WindNoisePanel.IsHitTestVisible = controllable && !dynamicLevel && !windLocked;
+            WindNoisePanel.Opacity = !windKnownAvailable || dynamicLevel || windLocked ? 0.4 : 1.0;
+            WindNoisePanel.IsHitTestVisible = windKnownAvailable && !dynamicLevel && !windLocked;
         }
 
         if (!controllable)

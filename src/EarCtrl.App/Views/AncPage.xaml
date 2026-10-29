@@ -13,12 +13,12 @@
                 <Run x:Name="CurrentDeviceRun" Text="--" FontWeight="SemiBold" />
             </ui:TextBlock>
 
-            <!-- 模式三选（K11）：降噪 / 透传 / 关闭 -->
-            <Grid>
+            <!-- 模式三选（K11）：降噪 / 透传 / 关闭；按 Profile 能力裁剪（module id: anc.mode.*） -->
+            <Grid x:Name="ModeGrid">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition x:Name="ModeCol0" Width="*" />
+                    <ColumnDefinition x:Name="ModeCol1" Width="*" />
+                    <ColumnDefinition x:Name="ModeCol2" Width="*" />
                 </Grid.ColumnDefinitions>
                 <ui:Button x:Name="BtnCancellation" Grid.Column="0" Height="64" Margin="0,0,8,0" FontSize="15"
                            Appearance="Secondary" Click="OnModeClick" Tag="cancellation"
