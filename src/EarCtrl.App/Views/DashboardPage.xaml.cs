@@ -141,8 +141,8 @@ public partial class DashboardPage : Page
 
     private void RefreshCardButtons(bool isOverhead, bool controllable)
     {
-        var connect = isOverhead ? (Wpf.Ui.Controls.Button?)HeadsetConnect : EarbudsConnect;
-        var disconnect = isOverhead ? (Wpf.Ui.Controls.Button?)HeadsetDisconnect : EarbudsDisconnect;
+        var connect = isOverhead ? HeadsetConnect : EarbudsConnect;
+        var disconnect = isOverhead ? HeadsetDisconnect : EarbudsDisconnect;
         connect.IsEnabled = !controllable;
         disconnect.IsEnabled = controllable;
     }

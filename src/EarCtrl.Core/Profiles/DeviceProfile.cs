@@ -73,7 +73,7 @@ public sealed class Capabilities
     public List<string> AncModes { get; set; } = [];
 
     /// <summary>
-    /// 降噪模式下可选等级（值为协议等级 tag：cozy=轻度、normal=均衡、ultra=深度、dynamic=动态）。
+    /// 降噪模式下可选等级（值为 App/协议 level tag：comfort=轻度、normal=均衡、ultra=深度、dynamic=动态）。
     /// 空列表 = 设备不支持等级调节（页面隐藏等级行）。这是等级的**唯一权威声明**。
     /// </summary>
     [JsonPropertyName("ancLevels")]

@@ -20,7 +20,7 @@
   "capabilities": {
     "battery": { "left": true, "right": true, "case": true },
     "ancModes": ["normal", "cancellation", "awareness"],
-    "ancLevels": ["cozy", "normal", "ultra", "dynamic"],
+    "ancLevels": ["comfort", "normal", "ultra", "dynamic"],
     "ancWindNoise": true,
     "equalizer": { "presets": ["低音增强", "人声", "古典", "高音增强"], "custom": true },
     "lowLatency": true,

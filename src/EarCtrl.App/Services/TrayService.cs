@@ -1,23 +1,43 @@
 using System.Drawing;
 using System.IO;
 using System.Windows;
-using System.Windows.Controls;
-using EarCtrl.App.Views;
+using EarCtrl.Core.Profiles;
 using EarCtrl.Core.StateMachine;
 using WinForms = System.Windows.Forms;
 
 namespace EarCtrl.App.Services;
 
 /// <summary>
-/// 托盘（M3）：左键开主窗，右键菜单 = 五态切换 + 显示主窗 + 退出。
+/// 托盘（M3）：左键开主窗，右键菜单 = 当前设备（K10）的降噪三模式 + 等级 + 显示/退出。
+/// 与降噪页同一语义，并按 Profile 能力门裁剪（未连接 = 显示但禁用；不支持 = 隐藏）；切换设备时自动同步。
 /// WPF-UI 4.3 无内置托盘控件，用 WinForms NotifyIcon（MIT 侧，零 GPL 依赖）。
 /// </summary>
 public sealed class TrayService : IDisposable
 {
     private WinForms.NotifyIcon? _icon;
+    private WinForms.ToolStripMenuItem? _deviceItem;
     private WinForms.ToolStripMenuItem? _ancMenu;
-    private readonly Dictionary<AncFiveState, WinForms.ToolStripMenuItem> _stateItems = new();
+    private WinForms.ToolStripMenuItem? _levelMenu;
+    private WinForms.ToolStripSeparator? _levelSeparator;
+    private readonly Dictionary<string, WinForms.ToolStripMenuItem> _modeItems = new();
+    private readonly Dictionary<string, WinForms.ToolStripMenuItem> _levelItems = new();
     private SynchronizationContext? _ui;
+
+    private static readonly (string Mode, string ModuleId, string LocKey)[] Modes =
+    {
+        ("cancellation", FeatureModules.AncModeCancellation, "Anc.Cancellation"),
+        ("awareness", FeatureModules.AncModeAwareness, "Anc.Awareness"),
+        ("normal", FeatureModules.AncModeNormal, "Anc.Off"),
+    };
+
+    /// <summary>等级项顺序（用户定调）：动态 / 轻度 / 均衡 / 深度。</summary>
+    private static readonly (string Level, string ModuleId, string LocKey)[] Levels =
+    {
+        ("dynamic", FeatureModules.AncLevelDynamic, "Anc.Level.Dynamic"),
+        ("comfort", FeatureModules.AncLevelComfort, "Anc.Level.Comfort"),
+        ("normal", FeatureModules.AncLevelNormal, "Anc.Level.Normal"),
+        ("ultra", FeatureModules.AncLevelUltra, "Anc.Level.Ultra"),
+    };
 
     public void Initialize()
     {
@@ -35,22 +55,35 @@ public sealed class TrayService : IDisposable
 
         var menu = new WinForms.ContextMenuStrip();
 
+        // 多设备适配：菜单顶部常驻当前设备名（K10 全局当前设备），切换设备时刷新
+        _deviceItem = new WinForms.ToolStripMenuItem("--") { Enabled = false };
+        menu.Items.Add(_deviceItem);
+        menu.Items.Add(new WinForms.ToolStripSeparator());
+
         _ancMenu = new WinForms.ToolStripMenuItem(Loc.Tr("Tray.Anc"));
-        foreach (var state in new[]
-                 {
-                     AncFiveState.Ultra, AncFiveState.General, AncFiveState.Cozy,
-                     AncFiveState.Transparency, AncFiveState.Off,
-                 })
+        foreach (var (mode, _, locKey) in Modes)
         {
-            var item = new WinForms.ToolStripMenuItem(TrayLabel(state))
-            {
-                CheckOnClick = true,
-            };
-            item.Click += async (_, _) => await ToggleStateAsync(state);
-            _stateItems[state] = item;
+            var item = new WinForms.ToolStripMenuItem(Loc.Tr(locKey));
+            var tag = mode;
+            item.Click += async (_, _) => await SetModeAsync(tag);
+            _modeItems[mode] = item;
             _ancMenu.DropDownItems.Add(item);
         }
+
+        _levelSeparator = new WinForms.ToolStripSeparator();
+        _ancMenu.DropDownItems.Add(_levelSeparator);
+        _levelMenu = new WinForms.ToolStripMenuItem(Loc.Tr("Anc.Level"));
+        foreach (var (level, _, locKey) in Levels)
+        {
+            var item = new WinForms.ToolStripMenuItem(Loc.Tr(locKey));
+            var tag = level;
+            item.Click += async (_, _) => await SetLevelAsync(tag);
+            _levelItems[level] = item;
+            _levelMenu.DropDownItems.Add(item);
+        }
+        _ancMenu.DropDownItems.Add(_levelMenu);
         menu.Items.Add(_ancMenu);
+
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add(Loc.Tr("Tray.Show"), null, (_, _) => ShowMainWindow());
         menu.Items.Add(Loc.Tr("Tray.Exit"), null, (_, _) => ExitApplication());
@@ -66,46 +99,112 @@ public sealed class TrayService : IDisposable
 
         DeviceContext.Instance.StateChanged += OnStateChanged;
         DeviceContext.Instance.CurrentChanged += OnCurrentChanged;
-        RefreshChecks();
+        DeviceContext.Instance.DevicesChanged += OnCurrentChanged;
+        SyncMenu();
     }
 
-    private static string TrayLabel(AncFiveState state) => state switch
-    {
-        AncFiveState.Ultra => Loc.Tr("Anc.Level.Ultra"),
-        AncFiveState.General => Loc.Tr("Anc.Level.Normal"),
-        AncFiveState.Cozy => Loc.Tr("Anc.Level.Comfort"),
-        AncFiveState.Transparency => Loc.Tr("Anc.Awareness"),
-        AncFiveState.Off => Loc.Tr("Anc.Off"),
-        _ => Loc.Tr("Anc.Level.Ultra"),
-    };
-
-    private async Task ToggleStateAsync(AncFiveState state)
+    private async Task SetModeAsync(string mode)
     {
         var brand = DeviceContext.Instance.Current?.Brand;
         if (brand is null) return;
         try
         {
-            await AgentHost.Instance.SetAncModeAsync(brand, state);
+            await AgentHost.Instance.SetAncModeAsync(brand, mode);
         }
         catch
         {
-            // 设备未就绪/下发失败：刷新勾选回到实际状态
+            // 设备未就绪/下发失败：忽略，SyncMenu 回到实际状态
         }
-        RefreshChecks();
+        SyncMenu();
     }
 
-    private void OnStateChanged(string brand) => _ui?.Post(_ => RefreshChecks(), null);
-    private void OnCurrentChanged() => _ui?.Post(_ => RefreshChecks(), null);
-
-    private void RefreshChecks()
+    /// <summary>切等级 = 降噪模式 + 指定档位（与降噪页同语义；等级仅在降噪模式下可切换）。</summary>
+    private async Task SetLevelAsync(string level)
     {
         var brand = DeviceContext.Instance.Current?.Brand;
-        var current = brand is null ? AncFiveState.Unknown : DeviceContext.Instance.GetState(brand).Anc;
-        foreach (var (state, item) in _stateItems)
+        if (brand is null) return;
+        try
         {
-            item.Checked = state == current;
+            await AgentHost.Instance.SetAncModeAsync(brand, "cancellation", level);
+        }
+        catch
+        {
+            // 同上
+        }
+        SyncMenu();
+    }
+
+    private void OnStateChanged(string brand) => _ui?.Post(_ => SyncMenu(), null);
+    private void OnCurrentChanged() => _ui?.Post(_ => SyncMenu(), null);
+
+    /// <summary>按当前设备的能力与真状态同步菜单：不支持隐藏、未连接显示但禁用、勾选跟随耳机。</summary>
+    private void SyncMenu()
+    {
+        var context = DeviceContext.Instance;
+        var profile = context.Current;
+        var brand = profile?.Brand;
+        var state = brand is null ? null : context.GetState(brand);
+        var connected = state is { IsControllable: true };
+
+        if (_deviceItem is not null)
+        {
+            _deviceItem.Text = profile?.Model.Name ?? "--";
+        }
+
+        var anyModeVisible = false;
+        foreach (var (mode, moduleId, _) in Modes)
+        {
+            var item = _modeItems[mode];
+            var avail = FeatureGate.Evaluate(moduleId, profile, connected);
+            item.Available = avail != FeatureAvailability.Unavailable;
+            item.Enabled = avail == FeatureAvailability.Available;
+            item.Checked = item.Available && ModeTag(state?.AncModeRaw) == mode;
+            anyModeVisible |= item.Available;
+        }
+
+        var levelAvail = FeatureGate.Evaluate(FeatureModules.AncLevel, profile, connected);
+        var levelVisible = levelAvail != FeatureAvailability.Unavailable;
+        foreach (var (level, moduleId, _) in Levels)
+        {
+            var item = _levelItems[level];
+            var avail = FeatureGate.Evaluate(moduleId, profile, connected);
+            item.Available = avail != FeatureAvailability.Unavailable;
+            item.Enabled = avail == FeatureAvailability.Available && state?.AncModeRaw == 1;
+            item.Checked = item.Available
+                           && state?.AncModeRaw == 1
+                           && LevelTag(state?.AncLevelRaw) == level;
+        }
+        if (_levelSeparator is not null)
+        {
+            _levelSeparator.Available = levelVisible;
+        }
+        if (_levelMenu is not null)
+        {
+            _levelMenu.Available = levelVisible;
+            _levelMenu.Enabled = levelAvail == FeatureAvailability.Available && state?.AncModeRaw == 1;
+        }
+        if (_ancMenu is not null)
+        {
+            _ancMenu.Available = anyModeVisible;
         }
     }
+
+    private static string? ModeTag(int? mode) => mode switch
+    {
+        1 => "cancellation",
+        2 => "awareness",
+        0 => "normal",
+        _ => null,
+    };
+
+    private static string? LevelTag(int? level) => level switch
+    {
+        0 => "normal",
+        1 => "comfort",
+        2 => "ultra",
+        3 => "dynamic",
+        _ => null,
+    };
 
     private static void ShowMainWindow()
     {
@@ -126,6 +225,7 @@ public sealed class TrayService : IDisposable
     {
         DeviceContext.Instance.StateChanged -= OnStateChanged;
         DeviceContext.Instance.CurrentChanged -= OnCurrentChanged;
+        DeviceContext.Instance.DevicesChanged -= OnCurrentChanged;
         if (_icon != null)
         {
             _icon.Visible = false;

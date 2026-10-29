@@ -52,19 +52,30 @@ public class FeatureGateTests
     }
 
     [Fact]
-    public void AncLevels_ListDrivesLevelRowAndDynamicOption()
+    public void AncLevels_DynamicOptionRequiresDynamicInList()
     {
-        var withDynamic = Profile(c => c.AncLevels.AddRange(["cozy", "normal", "ultra", "dynamic"]));
-        Assert.Equal(FeatureAvailability.Available,
-            FeatureGate.Evaluate(FeatureModules.AncLevel, withDynamic, connected: true));
+        var withDynamic = Profile(c => c.AncLevels.AddRange(["comfort", "normal", "ultra", "dynamic"]));
         Assert.Equal(FeatureAvailability.Available,
             FeatureGate.Evaluate(FeatureModules.AncLevelDynamic, withDynamic, connected: true));
 
-        var withoutDynamic = Profile(c => c.AncLevels.AddRange(["cozy", "normal", "ultra"]));
-        Assert.Equal(FeatureAvailability.Available,
-            FeatureGate.Evaluate(FeatureModules.AncLevel, withoutDynamic, connected: true));
+        var withoutDynamic = Profile(c => c.AncLevels.AddRange(["comfort", "normal", "ultra"]));
         Assert.Equal(FeatureAvailability.Unavailable,
             FeatureGate.Evaluate(FeatureModules.AncLevelDynamic, withoutDynamic, connected: true));
+    }
+
+    [Fact]
+    public void AncLevels_PerLevelModulesFollowList()
+    {
+        var profile = Profile(c => c.AncLevels.AddRange(["comfort", "dynamic"]));
+
+        Assert.Equal(FeatureAvailability.Available,
+            FeatureGate.Evaluate(FeatureModules.AncLevelComfort, profile, connected: true));
+        Assert.Equal(FeatureAvailability.Unavailable,
+            FeatureGate.Evaluate(FeatureModules.AncLevelNormal, profile, connected: true));
+        Assert.Equal(FeatureAvailability.Unavailable,
+            FeatureGate.Evaluate(FeatureModules.AncLevelUltra, profile, connected: true));
+        Assert.Equal(FeatureAvailability.Available,
+            FeatureGate.Evaluate(FeatureModules.AncLevelDynamic, profile, connected: true));
     }
 
     [Fact]

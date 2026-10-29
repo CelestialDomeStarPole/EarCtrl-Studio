@@ -21,6 +21,9 @@ public static class FeatureModules
     public const string AncModeNormal = "anc.mode.normal";
     public const string AncLevel = "anc.level";
     public const string AncLevelDynamic = "anc.level.dynamic";
+    public const string AncLevelComfort = "anc.level.comfort";
+    public const string AncLevelNormal = "anc.level.normal";
+    public const string AncLevelUltra = "anc.level.ultra";
     public const string AncWindNoise = "anc.windNoise";
 
     // ---- 以下为 M4 页面预留（模块实现时直接接入同一机制）----
@@ -77,6 +80,9 @@ public static class FeatureGate
             FeatureModules.AncModeNormal => Flag(caps.AncModes.Contains("normal")),
             FeatureModules.AncLevel => Flag(caps.AncLevels.Count > 0),
             FeatureModules.AncLevelDynamic => Flag(caps.AncLevels.Contains("dynamic")),
+            FeatureModules.AncLevelComfort => Flag(caps.AncLevels.Contains("comfort")),
+            FeatureModules.AncLevelNormal => Flag(caps.AncLevels.Contains("normal")),
+            FeatureModules.AncLevelUltra => Flag(caps.AncLevels.Contains("ultra")),
             FeatureModules.AncWindNoise => Flag(caps.AncWindNoise),
 
             FeatureModules.EqualizerPresets => Flag(caps.Equalizer.Presets.Count > 0),

@@ -82,7 +82,6 @@ public partial class AncPage : Page
 
         // ---- 页内模块能力门（Profile 为唯一权威；未连接 Unknown = 显示虚化，连接后 Unavailable = 隐藏）----
         var levelAvail = FeatureGate.Evaluate(FeatureModules.AncLevel, profile, controllable);
-        var dynamicAvail = FeatureGate.Evaluate(FeatureModules.AncLevelDynamic, profile, controllable);
         var windAvail = FeatureGate.Evaluate(FeatureModules.AncWindNoise, profile, controllable);
 
         // 模式三按钮：按 anc.mode.* 裁剪；选中态跟随耳机真状态（华为原始字节：0=关闭 1=降噪 2=透传）；
@@ -129,17 +128,21 @@ public partial class AncPage : Page
             : Visibility.Visible;
         var levelEnabled = levelAvail == FeatureAvailability.Available && controllable && mode == 1 && !windLocked;
         _suppressLevelChanged = true;
-        // 显示顺序（用户定调）：动态 / 轻度 / 均衡 / 深度（与协议 level 字节序无关）
-        var options = new List<KeyValuePair<string, string>>
+        // 显示顺序（用户定调）：动态 / 轻度 / 均衡 / 深度（与协议 level 字节序无关）；
+        // 每项按 Profile ancLevels 逐项裁剪（未连接 Unknown 时全部显示，连接后收敛）
+        var options = new List<KeyValuePair<string, string>>();
+        foreach (var (tag, moduleId, locKey) in new[]
+                 {
+                     ("dynamic", FeatureModules.AncLevelDynamic, "Anc.Level.Dynamic"),
+                     ("comfort", FeatureModules.AncLevelComfort, "Anc.Level.Comfort"),
+                     ("normal", FeatureModules.AncLevelNormal, "Anc.Level.Normal"),
+                     ("ultra", FeatureModules.AncLevelUltra, "Anc.Level.Ultra"),
+                 })
         {
-            new("comfort", Loc.Tr("Anc.Level.Comfort")),
-            new("normal", Loc.Tr("Anc.Level.Normal")),
-            new("ultra", Loc.Tr("Anc.Level.Ultra")),
-        };
-        // 动态项：未连接（Unknown）也显示（先全部显示虚化），连接后按 Profile 无动态则隐藏该项
-        if (dynamicAvail != FeatureAvailability.Unavailable)
-        {
-            options.Insert(0, new("dynamic", Loc.Tr("Anc.Level.Dynamic")));
+            if (FeatureGate.Evaluate(moduleId, profile, controllable) != FeatureAvailability.Unavailable)
+            {
+                options.Add(new(tag, Loc.Tr(locKey)));
+            }
         }
         LevelCombo.ItemsSource = options;
         LevelCombo.SelectedValue = LevelTag(state?.AncLevelRaw);

@@ -130,10 +130,6 @@ public sealed class AgentHost : IAsyncDisposable
         }
     }
 
-    /// <summary>当前设备下发降噪五态（托盘菜单用；映射到 IPC mode/level）。</summary>
-    public Task SetAncModeAsync(string brand, AncFiveState state) =>
-        SetAncModeAsync(brand, AncFiveStateMapper.ToIpcMode(state));
-
     /// <summary>当前设备下发防风噪开关（AncPage/动态档强制共用；IPC setWindNoise）。全局状态：所有非动态档共用。</summary>
     public async Task SetWindNoiseAsync(string brand, bool enabled)
     {
