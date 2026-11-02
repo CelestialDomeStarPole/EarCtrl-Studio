@@ -22,7 +22,7 @@
     "ancModes": ["normal", "cancellation", "awareness"],
     "ancLevels": ["comfort", "normal", "ultra", "dynamic"],
     "ancWindNoise": true,
-    "equalizer": { "presets": ["低音增强", "人声", "古典", "高音增强"], "custom": true },
+    "equalizer": { "presets": ["default", "hardbass", "treble", "voices"], "custom": true },
     "lowLatency": true,
     "holdAction": { "options": ["anc-cycle", "volume", "voice-assistant", "reject-call"] },
     "dualConnect": false,

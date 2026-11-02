@@ -13,6 +13,13 @@ public sealed class AppConfig
     public string Language { get; set; } = "zh-CN";       // zh-CN | en-US
     public bool DevToolsVisible { get; set; } = false;
 
+    // 通知（M4）：低电量托盘气泡提醒
+    public bool LowBatteryNotify { get; set; } = true;
+    public int LowBatteryThreshold { get; set; } = 20;   // 百分比
+
+    // Agent 手动开关（M4）：被禁用的品牌不自动拉起（§3.1-C）
+    public List<string> DisabledAgents { get; set; } = [];
+
     // 状态轮询（华为 Agent）：0=关闭，1-5=秒。轮询驱动在仓/佩戴检测；电量另有耳机事件推送
     public int PollIntervalSec { get; set; } = 1;
 

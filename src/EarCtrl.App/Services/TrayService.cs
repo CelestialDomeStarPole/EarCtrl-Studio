@@ -21,6 +21,8 @@ public sealed class TrayService : IDisposable
     private WinForms.ToolStripSeparator? _levelSeparator;
     private readonly Dictionary<string, WinForms.ToolStripMenuItem> _modeItems = new();
     private readonly Dictionary<string, WinForms.ToolStripMenuItem> _levelItems = new();
+    /// <summary>已提醒过低电量的设备（电量回升到阈值+5 以上时移除，避免重复弹气泡）。</summary>
+    private readonly HashSet<string> _lowBatteryNotified = new();
     private SynchronizationContext? _ui;
 
     private static readonly (string Mode, string ModuleId, string LocKey)[] Modes =
@@ -134,8 +136,60 @@ public sealed class TrayService : IDisposable
         SyncMenu();
     }
 
-    private void OnStateChanged(string brand) => _ui?.Post(_ => SyncMenu(), null);
+    private void OnStateChanged(string brand) => _ui?.Post(_ =>
+    {
+        SyncMenu();
+        CheckLowBattery(brand);
+    }, null);
+
     private void OnCurrentChanged() => _ui?.Post(_ => SyncMenu(), null);
+
+    /// <summary>低电量托盘气泡（M4）：任一耳电量 ≤ 阈值时每个设备只提醒一次（回升后重新武装）。
+    /// 关盖在仓的电量 0 是协议占位，不参与判定（与主页显示规则一致）。</summary>
+    private void CheckLowBattery(string brand)
+    {
+        if (!App.Config.LowBatteryNotify)
+        {
+            return;
+        }
+        var state = DeviceContext.Instance.GetState(brand);
+        if (!state.IsControllable)
+        {
+            return;
+        }
+
+        static int? Usable(int? battery, bool? inCase, bool? lidClosed) =>
+            battery is { } value && !(inCase == true && (lidClosed == true || value == 0))
+                ? value
+                : null;
+
+        var levels = new[]
+        {
+            Usable(state.BatteryLeft, state.InCaseLeft, state.LidClosedLeft),
+            Usable(state.BatteryRight, state.InCaseRight, state.LidClosedRight),
+        };
+        var level = levels.Where(v => v is not null).Select(v => v!.Value).DefaultIfEmpty(-1).Min();
+        if (level < 0)
+        {
+            return;
+        }
+
+        var threshold = App.Config.LowBatteryThreshold;
+        if (level <= threshold)
+        {
+            if (_lowBatteryNotified.Add(brand))
+            {
+                var name = DeviceContext.Instance.Devices.FirstOrDefault(d => d.Brand == brand)?.Model.Name
+                           ?? brand;
+                _icon?.ShowBalloonTip(3000, Loc.Tr("App.Title"),
+                    $"{name} {Loc.Tr("Notify.LowBattery")} {level}%", WinForms.ToolTipIcon.Warning);
+            }
+        }
+        else if (level > threshold + 5)
+        {
+            _lowBatteryNotified.Remove(brand);
+        }
+    }
 
     /// <summary>按当前设备的能力与真状态同步菜单：不支持隐藏、未连接显示但禁用、勾选跟随耳机。</summary>
     private void SyncMenu()

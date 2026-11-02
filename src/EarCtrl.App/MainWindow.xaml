@@ -25,17 +25,17 @@
                                        Content="{Binding [Nav.Dashboard], Source={x:Static services:LocSource.Instance}}" />
                 <ui:NavigationViewItem Tag="Anc" Icon="{ui:SymbolIcon HeadphonesSoundWave24}" TargetPageType="{x:Type pages:AncPage}"
                                        Content="{Binding [Nav.Anc], Source={x:Static services:LocSource.Instance}}" />
-                <ui:NavigationViewItem Tag="Equalizer" Icon="{ui:SymbolIcon Options24}" TargetPageType="{x:Type pages:EqualizerPlaceholder}"
+                <ui:NavigationViewItem Tag="Equalizer" Icon="{ui:SymbolIcon Options24}" TargetPageType="{x:Type pages:EqualizerPage}"
                                        Content="{Binding [Nav.Equalizer], Source={x:Static services:LocSource.Instance}}" />
                 <ui:NavigationViewItem Tag="Controls" Icon="{ui:SymbolIcon TapDouble24}" TargetPageType="{x:Type pages:ControlsPlaceholder}"
                                        Content="{Binding [Nav.Controls], Source={x:Static services:LocSource.Instance}}" />
-                <ui:NavigationViewItem Tag="Integration" Icon="{ui:SymbolIcon PuzzlePiece24}" TargetPageType="{x:Type pages:IntegrationPlaceholder}"
+                <ui:NavigationViewItem Tag="Integration" Icon="{ui:SymbolIcon PuzzlePiece24}" TargetPageType="{x:Type pages:IntegrationPage}"
                                        Content="{Binding [Nav.Integration], Source={x:Static services:LocSource.Instance}}" />
                 <ui:NavigationViewItem Tag="Advanced" Icon="{ui:SymbolIcon Beaker24}" TargetPageType="{x:Type pages:AdvancedPlaceholder}"
                                        Content="{Binding [Nav.Advanced], Source={x:Static services:LocSource.Instance}}" />
             </ui:NavigationView.MenuItems>
             <ui:NavigationView.FooterMenuItems>
-                <ui:NavigationViewItem Tag="DevTools" Icon="{ui:SymbolIcon Bug24}" TargetPageType="{x:Type pages:DevToolsPlaceholder}"
+                <ui:NavigationViewItem Tag="DevTools" Icon="{ui:SymbolIcon Bug24}" TargetPageType="{x:Type pages:DevToolsPage}"
                                        Content="{Binding [Nav.DevTools], Source={x:Static services:LocSource.Instance}}"
                                        Visibility="{Binding DevToolsVisibility, Source={x:Static services:UiState.Instance}}" />
                 <ui:NavigationViewItem Tag="Settings" Icon="{ui:SymbolIcon Settings24}" TargetPageType="{x:Type pages:SettingsPage}"

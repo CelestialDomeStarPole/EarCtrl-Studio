@@ -99,6 +99,36 @@
   <data name="Tray.Show" xml:space="preserve"><value>Show main window</value></data>
   <data name="Tray.Exit" xml:space="preserve"><value>Exit</value></data>
 
+  <!-- Equalizer (M4) -->
+  <data name="Eq.Presets" xml:space="preserve"><value>Presets</value></data>
+  <data name="Eq.Preset.default" xml:space="preserve"><value>Default</value></data>
+  <data name="Eq.Preset.hardbass" xml:space="preserve"><value>Bass boost</value></data>
+  <data name="Eq.Preset.treble" xml:space="preserve"><value>Treble boost</value></data>
+  <data name="Eq.Preset.voices" xml:space="preserve"><value>Voices</value></data>
+  <data name="Eq.NotSupported" xml:space="preserve"><value>Equalizer is not supported on this device.</value></data>
+
+  <!-- DevTools (M4) -->
+  <data name="DevTools.Subscribe" xml:space="preserve"><value>Receive raw frames</value></data>
+  <data name="DevTools.Clear" xml:space="preserve"><value>Clear</value></data>
+  <data name="DevTools.Send" xml:space="preserve"><value>Send</value></data>
+  <data name="DevTools.RawHex" xml:space="preserve"><value>Raw frame (HEX)</value></data>
+  <data name="DevTools.SendHint" xml:space="preserve"><value>Enter a complete Huawei SPP frame in HEX (header and CRC included). Sending does not wait for a response.</value></data>
+  <data name="Settings.DevTools" xml:space="preserve"><value>Developer options</value></data>
+  <data name="Settings.DevTools.Desc" xml:space="preserve"><value>Show the raw packet console at the bottom of the sidebar.</value></data>
+  <data name="Settings.AutoStart" xml:space="preserve"><value>Start with Windows</value></data>
+  <data name="Settings.AutoStart.Desc" xml:space="preserve"><value>Launch EarCtrl Studio automatically after signing in (adds a per-user startup entry).</value></data>
+  <data name="Settings.AutoStart.Failed" xml:space="preserve"><value>Could not update the per-user startup entry (permission denied).</value></data>
+
+  <!-- Integration (M4) -->
+  <data name="Integration.Notifications" xml:space="preserve"><value>Notifications</value></data>
+  <data name="Integration.LowBattery" xml:space="preserve"><value>Low battery alert</value></data>
+  <data name="Integration.LowBattery.Desc" xml:space="preserve"><value>Show a tray balloon when an earbud (worn or in an open case) drops below the threshold.</value></data>
+  <data name="Integration.Threshold" xml:space="preserve"><value>Alert threshold</value></data>
+  <data name="Integration.Agents" xml:space="preserve"><value>Device agents</value></data>
+  <data name="Integration.Agents.Desc" xml:space="preserve"><value>Turning off a device agent stops its background process and prevents it from launching automatically.</value></data>
+  <data name="Integration.Agents.None" xml:space="preserve"><value>No devices added yet.</value></data>
+  <data name="Notify.LowBattery" xml:space="preserve"><value>low battery</value></data>
+
   <!-- Add device (M3) -->
   <data name="AddDevice.Title" xml:space="preserve"><value>Add device</value></data>
   <data name="AddDevice.Header" xml:space="preserve"><value>Select earbuds to add</value></data>

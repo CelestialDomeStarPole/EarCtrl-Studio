@@ -39,6 +39,10 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private int _selectedPollIntervalSec = App.Config.PollIntervalSec;
 
+    /// <summary>开发者选项：是否在侧边栏显示调试台（M4）。</summary>
+    [ObservableProperty]
+    private bool _devToolsVisible = App.Config.DevToolsVisible;
+
     partial void OnSelectedThemeChanged(string value)
     {
         App.Config.Theme = value;
@@ -58,5 +62,12 @@ public partial class SettingsViewModel : ObservableObject
         App.Config.PollIntervalSec = value;
         ConfigStore.Save(App.Config);
         _ = AgentHost.Instance.ApplyPollIntervalAsync(value); // 对在跑 Agent 热更新（失败则下次拉起生效）
+    }
+
+    partial void OnDevToolsVisibleChanged(bool value)
+    {
+        App.Config.DevToolsVisible = value;
+        ConfigStore.Save(App.Config);
+        UiState.Instance.DevToolsVisible = value; // 侧边栏入口可见性立即生效
     }
 }

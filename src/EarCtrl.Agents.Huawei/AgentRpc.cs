@@ -32,6 +32,8 @@ public sealed class AgentRpc : IAsyncDisposable
     /// param3 恒 00 00 00，重连亦无效）；合盖期间保留该值，避免把「未检测」误当成「未充电」。</summary>
     private bool? _caseCharging;
     private bool? _lowLatency;
+    /// <summary>当前 EQ 预设 id（2B4A param2；null=未知）。</summary>
+    private int? _eqPreset;
     private bool? _windNoise;
     private bool _rawSubscribed;
     private DateTime _lastActivity = DateTime.UtcNow;
@@ -68,6 +70,7 @@ public sealed class AgentRpc : IAsyncDisposable
         _link.OnNotify(Cmd.AncRead, OnAncFrame);       // 写确认帧 2B2A
         _link.OnNotify(Cmd.AncChangeEvent, OnAncChangeEventAsync); // 耳机按键事件 2B03（param1=[level,mode]）
         _link.OnNotify(Cmd.MbbFeatureSwitch, OnWindNoiseFrame);   // 2B B4 子功能总线回报帧（param1=[0x1D] 防风噪）
+        _link.OnNotify(Cmd.EqRead, OnEqFrame);                    // 2B4A：EQ 读响应 / 写确认（param2=当前预设 id）
     }
 
     /// <summary>优雅退出信号（Program await 它后返回退出码 0）。</summary>
@@ -441,8 +444,29 @@ public sealed class AgentRpc : IAsyncDisposable
         {
             throw new ArgumentException($"未知预设 {preset}");
         }
-        await _link.SendPackageAsync(HuaweiCommands.EqSetPresetRequest(entry.Key), 5000, Cmd.EqRead);
-        return new { preset };
+        if (!_link.Started) throw new InvalidOperationException("链路未连接");
+
+        // 「2B70 开路 → 写」成对发送（查询/回报通道规律）；确认帧 2B4A 等 2s，
+        // 超时按写入值发布（写已发出），回报帧到达后由 OnEqFrame 校正
+        await _link.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+        await Task.Delay(200);
+        if (!_link.Started) throw new InvalidOperationException("链路未连接");
+        var confirm = await _link.SendPackageAsync(HuaweiCommands.EqSetPresetRequest(entry.Key), 2000, Cmd.EqRead);
+        _eqPreset = confirm is null
+            ? entry.Key
+            : HuaweiCommands.ParseEqPreset(confirm) ?? entry.Key;
+        PublishState();
+        return StateSnapshot();
+    }
+
+    /// <summary>2B4A 回报帧（EQ 读响应或写确认）：param2 = 当前预设 id。</summary>
+    private Task OnEqFrame(HuaweiSppPackage pkg)
+    {
+        var id = HuaweiCommands.ParseEqPreset(pkg);
+        if (id is null) return Task.CompletedTask;
+        _eqPreset = id;
+        PublishStateIfChanged();
+        return Task.CompletedTask;
     }
 
     private async Task<object> SetLowLatencyAsync(JsonElement? parameters)
@@ -594,6 +618,13 @@ public sealed class AgentRpc : IAsyncDisposable
             await Task.Delay(150, ct);
             if (!_link.Started) return;
             await _link.SendPackageAsync(HuaweiCommands.AncReadNoWaitRequest());
+            await Task.Delay(150, ct);
+            if (!_link.Started) return;
+            // EQ 状态查询（2B4A 读请求，2B70 开路）：回报帧经 OnNotify(2B4A) 驱动快照
+            await _link.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+            await Task.Delay(150, ct);
+            if (!_link.Started) return;
+            await _link.SendPackageAsync(HuaweiCommands.EqReadNoWaitRequest());
         }
         catch (OperationCanceledException) { }
         catch { /* 初始化失败不致命：轮询下一拍兜底 */ }
@@ -664,6 +695,13 @@ public sealed class AgentRpc : IAsyncDisposable
         },
         lowLatency = _lowLatency,
         windNoise = _windNoise,
+        eq = _eqPreset is null
+            ? null
+            : new
+            {
+                preset = HuaweiCommands.EqPresets.TryGetValue((byte)_eqPreset.Value, out var name) ? name : null,
+                presetId = _eqPreset.Value,
+            },
     };
 
     private void PublishState()

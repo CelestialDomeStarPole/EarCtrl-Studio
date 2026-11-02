@@ -89,6 +89,10 @@ public sealed class DeviceRuntimeState
     public bool? LowLatency { get; internal set; }
     /// <summary>防风噪开关（华为 2B B4 子功能总线回报；null = 未取得状态）。全局状态：所有非动态降噪档共用。</summary>
     public bool? WindNoise { get; internal set; }
+    /// <summary>当前 EQ 预设 id（Agent eq.preset，如 default/hardbass/treble/voices；null=未知）。</summary>
+    public string? EqPreset { get; internal set; }
+    /// <summary>EQ 预设原始 id（未知预设时为原始数值，供诊断）。</summary>
+    public int? EqPresetId { get; internal set; }
 
     /// <summary>可下发控制命令（Agent 就绪且协议链路已连）。</summary>
     public bool IsControllable => SupervisorState == AgentState.Ready && LinkStatus == "connected";
@@ -222,6 +226,11 @@ public sealed class DeviceContext
                 }
                 state.LowLatency = Json.ReadBool(e.Payload, "lowLatency") ?? state.LowLatency;
                 state.WindNoise = Json.ReadBool(e.Payload, "windNoise") ?? state.WindNoise;
+                if (Json.GetObject(e.Payload, "eq") is { } eq)
+                {
+                    state.EqPreset = Json.ReadString(eq, "preset") ?? state.EqPreset;
+                    state.EqPresetId = Json.ReadInt(eq, "presetId") ?? state.EqPresetId;
+                }
                 break;
 
             default:

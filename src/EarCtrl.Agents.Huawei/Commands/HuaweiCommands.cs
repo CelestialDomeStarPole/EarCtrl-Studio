@@ -154,6 +154,14 @@ public static class HuaweiCommands
     public static HuaweiSppPackage EqReadRequest() =>
         HuaweiSppPackage.ReadRequest(Cmd.EqRead, 1, 2, 3, 4, 5, 6, 7, 8);
 
+    /// <summary>EQ 读请求不等待响应版（会话初始化用，回帧走 OnNotify(2B4A)）。</summary>
+    public static HuaweiSppPackage EqReadNoWaitRequest()
+    {
+        var pkg = EqReadRequest();
+        pkg.ResponseId = [];
+        return pkg;
+    }
+
     /// <summary>切换到内置预设（SE 4 ANC 无自定义 EQ 写场景时的最简路径）。</summary>
     public static HuaweiSppPackage EqSetPresetRequest(byte presetId) =>
         HuaweiSppPackage.ChangeRequest(Cmd.EqWrite, (1, new[] { presetId }));

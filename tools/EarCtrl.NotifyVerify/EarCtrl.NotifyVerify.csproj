@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 托盘通知验证工具（MIT，验证 App 侧 WinForms NotifyIcon 气泡样式）。
+       独立于主构建链：EarCtrl.App 不引用本项目，dotnet publish 主程序不会包含它；
+       仅开发期验证用，构建方式：dotnet build tools/EarCtrl.NotifyVerify -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <RootNamespace>EarCtrl.NotifyVerify</RootNamespace>
+    <AssemblyName>EarCtrl.NotifyVerify</AssemblyName>
+    <AssemblyTitle>EarCtrl Studio - Notify Verify</AssemblyTitle>
+    <Product>EarCtrl Studio</Product>
+    <Company>EarCtrl Studio</Company>
+    <Version>0.1.0</Version>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 复用主程序托盘图标，保证气泡左侧图标与 App 一致 -->
+    <Content Include="..\..\src\EarCtrl.App\Resources\earctrl.ico" Link="Resources\earctrl.ico"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using EarCtrl.Core.Config;
 using EarCtrl.Core.Profiles;
 using EarCtrl.Core.StateMachine;
@@ -73,7 +74,12 @@ public sealed class AgentHost : IAsyncDisposable
             var supervisor = new AgentSupervisor(
                 profile, App.Config, new AgentProcessLauncher(), new NamedPipeSessionFactory());
             supervisor.StateChanged += (_, e) => Context.UpdateSupervisorState(e.Brand, e.State);
-            supervisor.AgentEvent += e => Context.UpdateAgentEvent(profile.Brand, e);
+            supervisor.AgentEvent += e => OnAgentEvent(profile.Brand, e);
+            // 手动关闭过的 Agent（config.DisabledAgents）在下次启动时保持禁用
+            if (App.Config.DisabledAgents.Contains(profile.Brand))
+            {
+                supervisor.SetEnabled(false);
+            }
             _supervisors[profile.Brand] = supervisor;
         }
     }
@@ -127,6 +133,77 @@ public sealed class AgentHost : IAsyncDisposable
         if (!response.Ok)
         {
             throw new InvalidOperationException(response.Error?.Message ?? "setAncMode 失败");
+        }
+    }
+
+    /// <summary>Agent rawPacket 事件（DevTools 调试台）：brand, dir(TX/RX), hex（仅订阅期间由 Agent 发送）。</summary>
+    public event Action<string, string, string>? RawPacketReceived;
+
+    private void OnAgentEvent(string brand, IpcEvent e)
+    {
+        Context.UpdateAgentEvent(brand, e);
+        if (e.Event != "rawPacket" || e.Payload is not { ValueKind: JsonValueKind.Object } payload)
+        {
+            return;
+        }
+        var dir = payload.TryGetProperty("dir", out var d) && d.ValueKind == JsonValueKind.String
+            ? d.GetString() ?? "?"
+            : "?";
+        var hex = payload.TryGetProperty("hex", out var h) && h.ValueKind == JsonValueKind.String
+            ? h.GetString() ?? ""
+            : "";
+        RawPacketReceived?.Invoke(brand, dir, hex);
+    }
+
+    /// <summary>Agent 手动开关（§3.1-C）：关闭 = 杀进程且不再自动拉起；状态持久化到 config.DisabledAgents。</summary>
+    public void SetAgentEnabled(string brand, bool enabled)
+    {
+        if (GetSupervisor(brand) is not { } supervisor)
+        {
+            return;
+        }
+        supervisor.SetEnabled(enabled);
+        if (enabled)
+        {
+            App.Config.DisabledAgents.Remove(brand);
+        }
+        else if (!App.Config.DisabledAgents.Contains(brand))
+        {
+            App.Config.DisabledAgents.Add(brand);
+        }
+        ConfigStore.Save(App.Config);
+    }
+
+    /// <summary>调试台：订阅/取消订阅 Agent 原始帧（IPC debugSubscribeRaw / debugUnsubscribeRaw）。</summary>
+    public async Task SetRawSubscriptionAsync(string brand, bool subscribe)
+    {
+        var supervisor = GetSupervisor(brand) ?? throw new InvalidOperationException("设备未就绪");
+        var response = await supervisor.SendAsync(subscribe ? "debugSubscribeRaw" : "debugUnsubscribeRaw");
+        if (!response.Ok)
+        {
+            throw new InvalidOperationException(response.Error?.Message ?? "调试订阅失败");
+        }
+    }
+
+    /// <summary>调试台：发送原始帧（HEX，完整华为 SPP 帧；IPC debugSendRaw，发完即走）。</summary>
+    public async Task SendRawAsync(string brand, string hex)
+    {
+        var supervisor = GetSupervisor(brand) ?? throw new InvalidOperationException("设备未就绪");
+        var response = await supervisor.SendAsync("debugSendRaw", new { hex });
+        if (!response.Ok)
+        {
+            throw new InvalidOperationException(response.Error?.Message ?? "原始帧发送失败");
+        }
+    }
+
+    /// <summary>当前设备切换 EQ 预设（IPC setEq；preset 为 Profile 声明的 id，如 default/hardbass/treble/voices）。</summary>
+    public async Task SetEqAsync(string brand, string preset)
+    {
+        var supervisor = GetSupervisor(brand) ?? throw new InvalidOperationException("设备未就绪");
+        var response = await supervisor.SendAsync("setEq", new { preset });
+        if (!response.Ok)
+        {
+            throw new InvalidOperationException(response.Error?.Message ?? "setEq 失败");
         }
     }
 

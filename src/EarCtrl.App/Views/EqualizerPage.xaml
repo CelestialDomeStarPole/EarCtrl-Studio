@@ -1,0 +1,29 @@
+<Page x:Class="EarCtrl.App.Views.EqualizerPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:services="clr-namespace:EarCtrl.App.Services">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="28,20,28,28" MaxWidth="860" HorizontalAlignment="Left">
+            <ui:TextBlock FontTypography="Title" Margin="0,0,0,4"
+                          Text="{Binding [Nav.Equalizer], Source={x:Static services:LocSource.Instance}}" />
+            <ui:TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,20">
+                <Run Text="{Binding [Dashboard.CurrentDevice], Source={x:Static services:LocSource.Instance}, Mode=OneWay}" />
+                <Run x:Name="CurrentDeviceRun" Text="--" FontWeight="SemiBold" />
+            </ui:TextBlock>
+
+            <!-- 预设（module: equalizer.presets；列表来自 Profile 能力，按钮由代码生成） -->
+            <ui:Card x:Name="PresetCard">
+                <StackPanel>
+                    <ui:TextBlock FontTypography="Subtitle"
+                                  Text="{Binding [Eq.Presets], Source={x:Static services:LocSource.Instance}}" />
+                    <WrapPanel x:Name="PresetPanel" Margin="0,12,0,0" />
+                </StackPanel>
+            </ui:Card>
+
+            <ui:TextBlock x:Name="HintText" Margin="0,16,0,0" Visibility="Collapsed"
+                          Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

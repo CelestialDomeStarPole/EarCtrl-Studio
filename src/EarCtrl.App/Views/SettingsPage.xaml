@@ -65,6 +65,34 @@
                                   Text="{Binding [Settings.PollInterval.Hint], Source={x:Static services:LocSource.Instance}}" />
                 </StackPanel>
             </ui:Card>
+
+            <!-- 开机自启（HKCU Run，原「系统集成」页迁移至此） -->
+            <ui:Card Margin="0,0,0,12">
+                <StackPanel>
+                    <ui:TextBlock FontTypography="Subtitle"
+                                  Text="{Binding [Settings.AutoStart], Source={x:Static services:LocSource.Instance}}" />
+                    <ui:ToggleSwitch x:Name="AutoStartToggle" Margin="0,12,0,0" HorizontalAlignment="Left"
+                                     Click="OnAutoStartToggled"
+                                     Content="{Binding [Settings.AutoStart], Source={x:Static services:LocSource.Instance}}" />
+                    <ui:TextBlock Margin="0,8,0,0" FontTypography="Caption" TextWrapping="Wrap"
+                                  Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                  Text="{Binding [Settings.AutoStart.Desc], Source={x:Static services:LocSource.Instance}}" />
+                </StackPanel>
+            </ui:Card>
+
+            <!-- 开发者选项（M4）：显示原始报文调试台入口（默认隐藏） -->
+            <ui:Card>
+                <StackPanel>
+                    <ui:TextBlock FontTypography="Subtitle"
+                                  Text="{Binding [Settings.DevTools], Source={x:Static services:LocSource.Instance}}" />
+                    <ui:ToggleSwitch Margin="0,12,0,0" HorizontalAlignment="Left"
+                                     IsChecked="{Binding DevToolsVisible, Mode=TwoWay}"
+                                     Content="{Binding [Settings.DevTools], Source={x:Static services:LocSource.Instance}}" />
+                    <ui:TextBlock Margin="0,8,0,0" FontTypography="Caption" TextWrapping="Wrap"
+                                  Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                  Text="{Binding [Settings.DevTools.Desc], Source={x:Static services:LocSource.Instance}}" />
+                </StackPanel>
+            </ui:Card>
         </StackPanel>
     </ScrollViewer>
 </Page>

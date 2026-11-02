@@ -99,6 +99,36 @@
   <data name="Tray.Show" xml:space="preserve"><value>显示主窗口</value></data>
   <data name="Tray.Exit" xml:space="preserve"><value>退出</value></data>
 
+  <!-- 均衡器（M4） -->
+  <data name="Eq.Presets" xml:space="preserve"><value>预设</value></data>
+  <data name="Eq.Preset.default" xml:space="preserve"><value>默认</value></data>
+  <data name="Eq.Preset.hardbass" xml:space="preserve"><value>低音增强</value></data>
+  <data name="Eq.Preset.treble" xml:space="preserve"><value>高音增强</value></data>
+  <data name="Eq.Preset.voices" xml:space="preserve"><value>人声</value></data>
+  <data name="Eq.NotSupported" xml:space="preserve"><value>当前设备不支持均衡器设置。</value></data>
+
+  <!-- 调试台（M4） -->
+  <data name="DevTools.Subscribe" xml:space="preserve"><value>接收原始帧</value></data>
+  <data name="DevTools.Clear" xml:space="preserve"><value>清空</value></data>
+  <data name="DevTools.Send" xml:space="preserve"><value>发送</value></data>
+  <data name="DevTools.RawHex" xml:space="preserve"><value>原始帧（HEX）</value></data>
+  <data name="DevTools.SendHint" xml:space="preserve"><value>输入完整华为 SPP 帧 HEX（含帧头与 CRC），发送后不等待响应。</value></data>
+  <data name="Settings.DevTools" xml:space="preserve"><value>开发者选项</value></data>
+  <data name="Settings.DevTools.Desc" xml:space="preserve"><value>在侧边栏底部显示原始报文调试台。</value></data>
+  <data name="Settings.AutoStart" xml:space="preserve"><value>开机自启动</value></data>
+  <data name="Settings.AutoStart.Desc" xml:space="preserve"><value>登录 Windows 后自动启动 EarCtrl Studio（写入当前用户启动项）。</value></data>
+  <data name="Settings.AutoStart.Failed" xml:space="preserve"><value>无法写入当前用户启动项，请检查权限。</value></data>
+
+  <!-- 集成（M4） -->
+  <data name="Integration.Notifications" xml:space="preserve"><value>通知</value></data>
+  <data name="Integration.LowBattery" xml:space="preserve"><value>低电量提醒</value></data>
+  <data name="Integration.LowBattery.Desc" xml:space="preserve"><value>任一耳机（佩戴或开盖在盒）电量低于阈值时，通过托盘气泡提醒。</value></data>
+  <data name="Integration.Threshold" xml:space="preserve"><value>提醒阈值</value></data>
+  <data name="Integration.Agents" xml:space="preserve"><value>设备 Agent</value></data>
+  <data name="Integration.Agents.Desc" xml:space="preserve"><value>关闭某个设备的 Agent 后，后台进程将停止且不会随设备出现自动启动。</value></data>
+  <data name="Integration.Agents.None" xml:space="preserve"><value>尚未添加设备。</value></data>
+  <data name="Notify.LowBattery" xml:space="preserve"><value>电量低</value></data>
+
   <!-- 添加设备（M3） -->
   <data name="AddDevice.Title" xml:space="preserve"><value>添加设备</value></data>
   <data name="AddDevice.Header" xml:space="preserve"><value>选择要添加的耳机</value></data>

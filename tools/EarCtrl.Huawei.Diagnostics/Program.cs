@@ -225,6 +225,38 @@ switch (options.Command)
         break;
     }
 
+    case "longpress":
+    {
+        // 长按（触控）设置协议探测：官方 APK 证据 = 2B B4 子功能总线 0x17（COMMAND_ID_GET_LONG_PRESS=23）。
+        // 依次尝试 param2/3/5/7 空值读请求，打印全部回帧以确定真实结构（写入前必须完成本实验）。
+        var t0 = DateTime.Now;
+        client.RawFrame += (dir, bytes) =>
+            Console.Out.WriteLine($"{DateTime.Now - t0:mm\\:ss\\.fff} [{dir}] {Convert.ToHexString(bytes)}");
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(300);
+            foreach (var param in new[] { 2, 3, 5, 7 })
+            {
+                Console.Out.WriteLine($"=== READ long-press: 2BB4 | 0101 17 | param{param}=empty ===");
+                try
+                {
+                    await client.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+                    await Task.Delay(200);
+                    var probe = HuaweiSppPackage.ChangeRequestNoWait(Cmd.MbbFeatureSwitch, (1, [0x17]), (param, []));
+                    await client.SendPackageAsync(probe);
+                }
+                catch (Exception ex)
+                {
+                    Console.Out.WriteLine($"[send failed] {ex.Message}");
+                }
+                await Task.Delay(1500);
+            }
+            Console.Out.WriteLine("=== DONE. 判读：有 2BB4 回帧 → 记录 param 号/长度/值；全无回帧 → 该设备不暴露长按配置 ===");
+        });
+        await Task.Delay(Timeout.Infinite);
+        break;
+    }
+
     case "monitor3":
     {
         // 完整复刻实验：按官方 App 连接后 5.77~8.0s 的全部 78 帧按序重放，然后纯监听。
@@ -545,6 +577,7 @@ static void PrintUsage()
           polltest                       「2B70 使能 → 0108 查询」成对轮询回帧率诊断
           chargetest                     充电盒充电状态分阶段诊断（开盖/关盖 × 插电/不插电）
           caseplug                       合盖插电 + 重连刷新诊断（运行前保持关盖插电）
+          longpress                      长按/触控设置协议探测（2B B4 子功能 0x17 各个 param 读）
           windnoise                      防风噪（2B B4/0x1D）读/写/回报帧观测诊断
         """);
 }
