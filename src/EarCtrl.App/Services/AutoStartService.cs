@@ -11,6 +11,9 @@ public static class AutoStartService
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "EarCtrl Studio";
 
+    /// <summary>开机自启启动参数：仅驻留托盘，不打开主界面。</summary>
+    public const string SilentArgument = "--autostart";
+
     public static bool IsEnabled()
     {
         try
@@ -40,7 +43,7 @@ public static class AutoStartService
                 {
                     return false;
                 }
-                key.SetValue(ValueName, $"\"{exe}\"");
+                key.SetValue(ValueName, $"\"{exe}\" {SilentArgument}");
             }
             else
             {

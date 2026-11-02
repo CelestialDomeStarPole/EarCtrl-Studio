@@ -260,7 +260,7 @@ public sealed class TrayService : IDisposable
         _ => null,
     };
 
-    private static void ShowMainWindow()
+    internal static void ShowMainWindow()
     {
         var window = Application.Current?.MainWindow;
         if (window is null) return;

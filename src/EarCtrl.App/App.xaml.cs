@@ -18,17 +18,25 @@ public partial class App : Application
     private TrayService? _tray;
     private Mutex? _instanceMutex;
     private bool _ownsMutex;
+    private EventWaitHandle? _showWindowEvent;
+    private Thread? _showWindowWatcher;
+
+    /// <summary>第二实例请求第一实例显示主窗口的命名事件（静默驻留托盘时也能被双击图标唤起）。</summary>
+    private const string ShowWindowEventName = @"Local\EarCtrl.App.ShowWindow";
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // 静默驻留（无窗口）时不能因「最后一个窗口关闭」而退出；退出统一走托盘菜单的显式 Shutdown
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
         // 单实例互斥：重复启动 → 激活已有实例主窗口后退出（防双 Supervisor 抢同一 Agent/耳机）
         _instanceMutex = new Mutex(true, @"Local\EarCtrl.App.Instance", out var createdNew);
         _ownsMutex = createdNew;
         if (!createdNew)
         {
-            ActivateExistingWindow();
+            RequestExistingInstanceShowWindow();
             Shutdown();
             return;
         }
@@ -42,7 +50,45 @@ public partial class App : Application
         ThemeService.Apply(Config.Theme);
         _tray = new TrayService();
         _tray.Initialize();
-        window.Show();
+        StartShowWindowWatcher();
+
+        // 开机自启（--autostart）静默驻留托盘；手动启动才打开主界面
+        if (!e.Args.Contains(AutoStartService.SilentArgument, StringComparer.OrdinalIgnoreCase))
+        {
+            window.Show();
+        }
+    }
+
+    /// <summary>监听第二实例的显示请求：从托盘驻留状态唤起主窗口。</summary>
+    private void StartShowWindowWatcher()
+    {
+        _showWindowEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowWindowEventName);
+        _showWindowWatcher = new Thread(() =>
+        {
+            while (true)
+            {
+                _showWindowEvent.WaitOne();
+                Dispatcher.BeginInvoke(TrayService.ShowMainWindow);
+            }
+        })
+        { IsBackground = true };
+        _showWindowWatcher.Start();
+    }
+
+    /// <summary>已有实例在跑：优先发事件让它显示主窗口；旧版本实例无事件则回退到窗口句柄激活。</summary>
+    private static void RequestExistingInstanceShowWindow()
+    {
+        try
+        {
+            using var showEvent = EventWaitHandle.OpenExisting(ShowWindowEventName);
+            showEvent.Set();
+            return;
+        }
+        catch
+        {
+            // 事件不存在（旧版本实例）：回退
+        }
+        ActivateExistingWindow();
     }
 
     private static void ActivateExistingWindow()
