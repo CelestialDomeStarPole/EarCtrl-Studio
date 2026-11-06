@@ -163,6 +163,17 @@
   <data name="Controls.MultiTap.volume-up" xml:space="preserve"><value>增大音量</value></data>
   <data name="Controls.MultiTap.volume-down" xml:space="preserve"><value>减小音量</value></data>
 
+  <!-- 音效：自定义 EQ（2B4A param8 读、2B49 param1..5 写） -->
+  <data name="Eq.Custom" xml:space="preserve"><value>自定义音效</value></data>
+  <data name="Eq.Custom.Desc" xml:space="preserve"><value>调整 10 个频段的增益后保存，会立即写入耳机并在设备内保存为自定义音效。</value></data>
+  <data name="Eq.Custom.NameHint" xml:space="preserve"><value>音效名称</value></data>
+  <data name="Eq.Custom.New" xml:space="preserve"><value>新建自定义音效</value></data>
+  <data name="Eq.Custom.Reset" xml:space="preserve"><value>重置</value></data>
+  <data name="Eq.Custom.Apply" xml:space="preserve"><value>应用</value></data>
+  <data name="Eq.Custom.Save" xml:space="preserve"><value>保存</value></data>
+  <data name="Eq.Custom.BandHint" xml:space="preserve"><value>滑块范围 -6 ~ +6；建议根据播放音乐时的实时感受调整效果。</value></data>
+  <data name="Eq.Custom.Timeout" xml:space="preserve"><value>耳机未确认自定义音效，请重试。</value></data>
+
   <!-- 集成（M4） -->
   <data name="Integration.Notifications" xml:space="preserve"><value>通知</value></data>
   <data name="Integration.LowBattery" xml:space="preserve"><value>低电量提醒</value></data>

@@ -22,6 +22,45 @@
                 </StackPanel>
             </ui:Card>
 
+            <!-- 自定义音效（module: equalizer.custom）：10 段滑块，保存后立即应用到耳机 -->
+            <ui:Card x:Name="CustomCard" Margin="0,12,0,0">
+                <StackPanel>
+                    <ui:TextBlock FontTypography="Subtitle"
+                                  Text="{Binding [Eq.Custom], Source={x:Static services:LocSource.Instance}}" />
+                    <ui:TextBlock Margin="0,8,0,0" FontTypography="Caption" TextWrapping="Wrap"
+                                  Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                  Text="{Binding [Eq.Custom.Desc], Source={x:Static services:LocSource.Instance}}" />
+
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ui:TextBox x:Name="CustomNameBox" Grid.Column="0" MinHeight="34" Margin="0,0,8,0"
+                                    VerticalContentAlignment="Center"
+                                    PlaceholderText="{Binding [Eq.Custom.NameHint], Source={x:Static services:LocSource.Instance}}" />
+                        <ComboBox x:Name="CustomModeCombo" Grid.Column="1" Width="180" MinHeight="34"
+                                  SelectedValuePath="Value" DisplayMemberPath="Label"
+                                  SelectionChanged="OnCustomModeChanged" />
+                    </Grid>
+
+                    <UniformGrid x:Name="BandPanel" Columns="10" Margin="0,16,0,0" />
+
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <ui:Button Click="OnResetCustomClick"
+                                   Content="{Binding [Eq.Custom.Reset], Source={x:Static services:LocSource.Instance}}" />
+                        <ui:Button x:Name="ApplyCustomButton" Margin="8,0,0,0" Click="OnApplyCustomClick"
+                                   Content="{Binding [Eq.Custom.Apply], Source={x:Static services:LocSource.Instance}}" />
+                        <ui:Button Margin="8,0,0,0" Appearance="Primary" Click="OnSaveCustomClick"
+                                   Content="{Binding [Eq.Custom.Save], Source={x:Static services:LocSource.Instance}}" />
+                    </StackPanel>
+
+                    <ui:TextBlock Margin="0,8,0,0" FontTypography="Caption" TextWrapping="Wrap"
+                                  Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                  Text="{Binding [Eq.Custom.BandHint], Source={x:Static services:LocSource.Instance}}" />
+                </StackPanel>
+            </ui:Card>
+
             <ui:TextBlock x:Name="HintText" Margin="0,16,0,0" Visibility="Collapsed"
                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
         </StackPanel>

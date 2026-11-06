@@ -207,6 +207,28 @@ public sealed class AgentHost : IAsyncDisposable
         }
     }
 
+    /// <summary>当前设备主动查询 EQ 状态（IPC queryEq；页面打开/缺值时调用）。</summary>
+    public async Task QueryEqAsync(string brand)
+    {
+        var supervisor = GetSupervisor(brand) ?? throw new InvalidOperationException("设备未就绪");
+        var response = await supervisor.SendAsync("queryEq");
+        if (!response.Ok)
+        {
+            throw new InvalidOperationException(response.Error?.Message ?? "queryEq 失败");
+        }
+    }
+
+    /// <summary>保存并应用自定义音效（IPC saveEqCustom；bands 为 10 段 -6..+6，id 缺省时由 Agent 分配）。</summary>
+    public async Task SaveEqCustomAsync(string brand, string name, IReadOnlyList<int> bands, int? id)
+    {
+        var supervisor = GetSupervisor(brand) ?? throw new InvalidOperationException("设备未就绪");
+        var response = await supervisor.SendAsync("saveEqCustom", new { name, bands, id });
+        if (!response.Ok)
+        {
+            throw new InvalidOperationException(response.Error?.Message ?? "saveEqCustom 失败");
+        }
+    }
+
     /// <summary>手势设置写入（IPC setGesture；gesture=long|double|triple|multi，kind=action|inCall|ancCycle）。</summary>
     public async Task SetGestureAsync(string brand, string gesture, string kind, string side, string value)
     {

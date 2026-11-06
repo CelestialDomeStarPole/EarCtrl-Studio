@@ -51,6 +51,16 @@ public static class AncFiveStateMapper
     };
 }
 
+/// <summary>自定义 EQ 模式（id 100..102；bands 为 10 段、每段 -6..+6）。</summary>
+public sealed record EqCustomModeState(int Id, string Name, int[] Bands);
+
+/// <summary>自定义 EQ 约定（官方/OpenFreebuds：内置 id 1..9，自定义从 100 起、最多 3 个）。</summary>
+public static class EqCustomIds
+{
+    public const int Base = 100;
+    public const int MaxCount = 3;
+}
+
 /// <summary>单设备运行时快照（Agent IPC 事件 + Supervisor 状态合并）。</summary>
 public sealed class DeviceRuntimeState
 {
@@ -93,6 +103,8 @@ public sealed class DeviceRuntimeState
     public string? EqPreset { get; internal set; }
     /// <summary>EQ 预设原始 id（未知预设时为原始数值，供诊断）。</summary>
     public int? EqPresetId { get; internal set; }
+    /// <summary>自定义 EQ 模式列表（2B4A param8；null=未知/设备不支持）。</summary>
+    public IReadOnlyList<EqCustomModeState>? EqCustomModes { get; internal set; }
 
     /// <summary>长按动作原始值（2B17；-1=关闭、10=切换降噪、0=语音助手、18=音量+、19=音量-）。</summary>
     public int? HoldActionLeft { get; internal set; }
@@ -251,6 +263,17 @@ public sealed class DeviceContext
                 {
                     state.EqPreset = Json.ReadString(eq, "preset") ?? state.EqPreset;
                     state.EqPresetId = Json.ReadInt(eq, "presetId") ?? state.EqPresetId;
+                    if (Json.GetArray(eq, "customModes") is { } modes)
+                    {
+                        state.EqCustomModes = modes
+                            .Select(m => (
+                                Id: Json.ReadInt(m, "id"),
+                                Name: Json.ReadString(m, "name"),
+                                Bands: Json.ReadIntArray(m, "bands")))
+                            .Where(m => m.Id is not null && m.Bands is { Length: > 0 })
+                            .Select(m => new EqCustomModeState(m.Id!.Value, m.Name ?? "", m.Bands!))
+                            .ToList();
+                    }
                 }
                 if (Json.GetObject(e.Payload, "holdAction") is { } hold)
                 {
@@ -348,4 +371,29 @@ internal static class Json
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Object
             ? v
             : null;
+
+    /// <summary>读取对象里的数组字段（逐项返回）。</summary>
+    public static IReadOnlyList<JsonElement>? GetArray(JsonElement? element, string name)
+    {
+        if (element is not { ValueKind: JsonValueKind.Object } e ||
+            !e.TryGetProperty(name, out var v) || v.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+        return v.EnumerateArray().ToList();
+    }
+
+    /// <summary>读取对象里的整数数组字段。</summary>
+    public static int[]? ReadIntArray(JsonElement? element, string name)
+    {
+        if (element is not { ValueKind: JsonValueKind.Object } e ||
+            !e.TryGetProperty(name, out var v) || v.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+        return v.EnumerateArray()
+            .Where(x => x.ValueKind == JsonValueKind.Number)
+            .Select(x => x.GetInt32())
+            .ToArray();
+    }
 }

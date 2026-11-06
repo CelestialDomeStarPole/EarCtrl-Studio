@@ -34,6 +34,8 @@ public sealed class AgentRpc : IAsyncDisposable
     private bool? _lowLatency;
     /// <summary>当前 EQ 预设 id（2B4A param2；null=未知）。</summary>
     private int? _eqPreset;
+    /// <summary>自定义 EQ 模式（2B4A param8）：id/名称/频段值（有符号，-6..+6）。</summary>
+    private IReadOnlyList<(int Id, string Name, int[] Bands)>? _eqCustomModes;
     private bool? _windNoise;
     /// <summary>长按动作（2B17 param1/2/4）：-1=关闭、10=切换降噪、0=语音助手、18=音量+、19=音量-（通话中 -1/0=接听）。</summary>
     private int? _holdActionLeft;
@@ -174,6 +176,11 @@ public sealed class AgentRpc : IAsyncDisposable
 
             case "setEq":
                 return await SetEqAsync(request.Params);
+            case "saveEqCustom":
+                return await SaveEqCustomAsync(request.Params);
+            case "queryEq":
+                await QueryEqAsync();
+                return null;
             case "setGesture":
                 return await SetGestureAsync(request.Params);
             case "queryGesture":
@@ -487,14 +494,97 @@ public sealed class AgentRpc : IAsyncDisposable
         return StateSnapshot();
     }
 
-    /// <summary>2B4A 回报帧（EQ 读响应或写确认）：param2 = 当前预设 id。</summary>
+    /// <summary>2B4A 回报帧（EQ 读响应或写确认）：param2 = 当前预设 id，param8 = 自定义模式列表。</summary>
     private Task OnEqFrame(HuaweiSppPackage pkg)
     {
         var id = HuaweiCommands.ParseEqPreset(pkg);
-        if (id is null) return Task.CompletedTask;
-        _eqPreset = id;
-        PublishStateIfChanged();
+        if (id is not null)
+        {
+            _eqPreset = id;
+        }
+        if (pkg.Parameters.ContainsKey(8))
+        {
+            _eqCustomModes = HuaweiCommands.ParseEqCustomModes(pkg) ?? [];
+        }
+        if (id is not null || pkg.Parameters.ContainsKey(8))
+        {
+            PublishStateIfChanged();
+        }
         return Task.CompletedTask;
+    }
+
+    /// <summary>IPC queryEq：UI pending/页面打开时主动读一次（「2B70 → 2B4A」成对）。</summary>
+    private async Task QueryEqAsync()
+    {
+        if (!_link.Started) throw new InvalidOperationException("链路未连接");
+        await _link.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+        await Task.Delay(200);
+        if (!_link.Started) return;
+        await _link.SendPackageAsync(HuaweiCommands.EqReadNoWaitRequest());
+    }
+
+    /// <summary>
+    /// IPC saveEqCustom：保存（action=1）并应用自定义音效。bands 为 10 段、每段 -6..+6；
+    /// id 缺省时分配 100..102（设备最多 3 个自定义模式）。
+    /// </summary>
+    private async Task<object> SaveEqCustomAsync(JsonElement? parameters)
+    {
+        var name = (ReadString(parameters, "name") ?? "").Trim();
+        if (name.Length == 0)
+        {
+            name = $"我的音效 {(_eqCustomModes?.Count ?? 0) + 1}";
+        }
+        var bands = ReadIntArray(parameters, "bands") ?? throw new ArgumentException("缺少 bands");
+        if (bands.Length != HuaweiCommands.EqCustomBandCount)
+        {
+            throw new ArgumentException($"bands 必须为 {HuaweiCommands.EqCustomBandCount} 段");
+        }
+        if (bands.Any(v => v < -6 || v > 6))
+        {
+            throw new ArgumentException("bands 取值范围为 -6..+6");
+        }
+        if (!_link.Started) throw new InvalidOperationException("链路未连接");
+
+        var id = ReadInt(parameters, "id") ?? NextEqCustomId();
+        await _link.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+        await Task.Delay(200);
+        if (!_link.Started) throw new InvalidOperationException("链路未连接");
+
+        // 写确认帧为 2B4A（与切换预设一致）；超时也不误判：随后主动读一次
+        var confirm = await _link.SendPackageAsync(
+            HuaweiCommands.EqCustomSetRequest(id, name, bands, action: 1), 2000, Cmd.EqRead);
+        if (confirm is not null)
+        {
+            if (HuaweiCommands.ParseEqPreset(confirm) is { } presetId) _eqPreset = presetId;
+            if (confirm.Parameters.ContainsKey(8))
+            {
+                _eqCustomModes = HuaweiCommands.ParseEqCustomModes(confirm) ?? [];
+            }
+        }
+        await Task.Delay(300);
+        try
+        {
+            await QueryEqAsync();
+        }
+        catch
+        {
+            // 链路瞬断：状态由下一次轮询/回报校正
+        }
+        PublishState();
+        return StateSnapshot();
+    }
+
+    private byte NextEqCustomId()
+    {
+        var used = _eqCustomModes?.Select(m => m.Id).ToHashSet() ?? new HashSet<int>();
+        for (var id = HuaweiCommands.EqCustomIdBase; id < HuaweiCommands.EqCustomIdBase + 3; id++)
+        {
+            if (!used.Contains(id))
+            {
+                return (byte)id;
+            }
+        }
+        throw new InvalidOperationException("自定义音效数量已达上限（3 个）");
     }
 
     private async Task<object> SetLowLatencyAsync(JsonElement? parameters)
@@ -920,12 +1010,17 @@ public sealed class AgentRpc : IAsyncDisposable
         },
         lowLatency = _lowLatency,
         windNoise = _windNoise,
-        eq = _eqPreset is null
+        eq = (_eqPreset is null && _eqCustomModes is null)
             ? null
             : new
             {
-                preset = HuaweiCommands.EqPresets.TryGetValue((byte)_eqPreset.Value, out var name) ? name : null,
-                presetId = _eqPreset.Value,
+                preset = _eqPreset is null
+                    ? null
+                    : HuaweiCommands.EqPresets.TryGetValue((byte)_eqPreset.Value, out var name) ? name : null,
+                presetId = _eqPreset,
+                customModes = _eqCustomModes is null
+                    ? null
+                    : _eqCustomModes.Select(m => new { id = m.Id, name = m.Name, bands = m.Bands }),
             },
         holdAction = (_holdActionLeft is null && _holdActionRight is null && _holdActionInCall is null
                       && _ancCycleLeft is null && _ancCycleRight is null)
@@ -1062,6 +1157,21 @@ public sealed class AgentRpc : IAsyncDisposable
         p.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number
             ? v.GetInt32()
             : null;
+
+    private static int[]? ReadIntArray(JsonElement? parameters, string name)
+    {
+        if (parameters is not JsonElement p || p.ValueKind != JsonValueKind.Object ||
+            !p.TryGetProperty(name, out var v) || v.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+        var result = new List<int>();
+        foreach (var item in v.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.Number) result.Add(item.GetInt32());
+        }
+        return result.ToArray();
+    }
 
     private static ulong? ReadAddress(JsonElement? parameters)
     {

@@ -189,6 +189,73 @@ public static class HuaweiCommands
         return v.Length == 1 ? (sbyte)v[0] : null;
     }
 
+    /// <summary>自定义 EQ 模式 id 起点（官方/OpenFreebuds 约定：内置为 1..9，自定义从 100 起）。</summary>
+    public const int EqCustomIdBase = 100;
+
+    /// <summary>自定义 EQ 频段数量（官方自定义界面：60/125/250/500/1K/2K/4K/8K/12K/16K）。</summary>
+    public const int EqCustomBandCount = 10;
+
+    /// <summary>
+    /// 解析 EQ 读回的自定义模式列表（param8）：每条 36 字节 = id(1) + count(1) + data[count] + name(UTF-8, 以 0 结束)。
+    /// 频段值为有符号字节（官方界面范围 -6..+6）。
+    /// </summary>
+    public static IReadOnlyList<(int Id, string Name, int[] Bands)>? ParseEqCustomModes(HuaweiSppPackage pkg)
+    {
+        var raw = pkg.FindParam(8);
+        if (raw.Length == 0)
+        {
+            return null;
+        }
+
+        var list = new List<(int Id, string Name, int[] Bands)>();
+        for (var offset = 0; offset + 2 <= raw.Length; offset += 36)
+        {
+            var length = Math.Min(36, raw.Length - offset);
+            var slice = raw.AsSpan(offset, length);
+            var id = (sbyte)slice[0];
+            var count = slice[1];
+            if (count < 1 || count > 30 || 2 + count > slice.Length)
+            {
+                continue;
+            }
+
+            var bands = new int[count];
+            for (var i = 0; i < count; i++)
+            {
+                bands[i] = (sbyte)slice[2 + i];
+            }
+
+            var nameBytes = slice[(2 + count)..].ToArray();
+            var nul = Array.IndexOf(nameBytes, (byte)0);
+            if (nul >= 0)
+            {
+                nameBytes = nameBytes[..nul];
+            }
+            var name = System.Text.Encoding.UTF8.GetString(nameBytes).Trim();
+            list.Add((id, name, bands));
+        }
+        return list.Count > 0 ? list : null;
+    }
+
+    /// <summary>
+    /// 自定义 EQ 写入（2B49）：param1=模式 id（自定义从 100 起）、param2=频段数、param3=频段值、
+    /// param4=名称（UTF-8）、param5=动作（1=保存并应用 / 2=删除）。官方 V3 构造与 OpenFreebuds 一致。
+    /// </summary>
+    public static HuaweiSppPackage EqCustomSetRequest(int id, string name, IReadOnlyList<int> bands, byte action)
+    {
+        var data = bands.Select(v => (byte)(sbyte)v).ToArray();
+        return HuaweiSppPackage.ChangeRequest(Cmd.EqWrite,
+            (1, [(byte)id]),
+            (2, [(byte)data.Length]),
+            (3, data),
+            (4, System.Text.Encoding.UTF8.GetBytes(name)),
+            (5, [action]));
+    }
+
+    /// <summary>删除自定义 EQ：带原频段数据与名称，动作值 2。</summary>
+    public static HuaweiSppPackage EqCustomDeleteRequest(int id, string name, IReadOnlyList<int> bands) =>
+        EqCustomSetRequest(id, name, bands, action: 2);
+
     // ---- 防风噪（官方智慧音频 App 逆向：2B B4 子功能总线，协议笔记 §7.8） ----
 
     /// <summary>防风噪子功能号（官方 FeatureMbbState.WIND_NOISE_PREVENTION，featureKey=29）。</summary>

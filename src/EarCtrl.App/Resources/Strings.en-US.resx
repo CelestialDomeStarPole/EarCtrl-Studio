@@ -163,6 +163,17 @@
   <data name="Controls.MultiTap.volume-up" xml:space="preserve"><value>Volume up</value></data>
   <data name="Controls.MultiTap.volume-down" xml:space="preserve"><value>Volume down</value></data>
 
+  <!-- Sound: custom EQ (2B4A param8 read, 2B49 param1..5 write) -->
+  <data name="Eq.Custom" xml:space="preserve"><value>Custom sound</value></data>
+  <data name="Eq.Custom.Desc" xml:space="preserve"><value>Adjust the gain of 10 bands and save; it is written to the earbuds immediately and stored there as a custom sound.</value></data>
+  <data name="Eq.Custom.NameHint" xml:space="preserve"><value>Sound name</value></data>
+  <data name="Eq.Custom.New" xml:space="preserve"><value>New custom sound</value></data>
+  <data name="Eq.Custom.Reset" xml:space="preserve"><value>Reset</value></data>
+  <data name="Eq.Custom.Apply" xml:space="preserve"><value>Apply</value></data>
+  <data name="Eq.Custom.Save" xml:space="preserve"><value>Save</value></data>
+  <data name="Eq.Custom.BandHint" xml:space="preserve"><value>Slider range -6 to +6. Adjust while listening to music for the best result.</value></data>
+  <data name="Eq.Custom.Timeout" xml:space="preserve"><value>The earbuds did not confirm the custom EQ. Try again.</value></data>
+
   <!-- Integration (M4) -->
   <data name="Integration.Notifications" xml:space="preserve"><value>Notifications</value></data>
   <data name="Integration.LowBattery" xml:space="preserve"><value>Low battery alert</value></data>
