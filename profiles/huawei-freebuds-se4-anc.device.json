@@ -24,7 +24,29 @@
     "ancWindNoise": true,
     "equalizer": { "presets": ["default", "hardbass", "treble", "voices"], "custom": true },
     "lowLatency": true,
-    "holdAction": { "options": ["anc-cycle", "volume", "voice-assistant", "reject-call"] },
+    "holdAction": {
+      "left": true,
+      "right": true,
+      "options": ["off", "anc-cycle", "voice-assistant", "volume-up", "volume-down"],
+      "inCallOptions": ["off", "reject-call"],
+      "ancCycleOptions": [1, 2, 3, 4]
+    },
+    "doubleTap": {
+      "left": true,
+      "right": true,
+      "options": ["off", "play-pause", "next", "prev", "voice-assistant"],
+      "inCallOptions": ["off", "answer"]
+    },
+    "tripleTap": {
+      "left": true,
+      "right": true,
+      "options": ["off", "next", "prev"]
+    },
+    "multiTap": {
+      "left": true,
+      "right": true,
+      "options": ["off", "volume-up", "volume-down"]
+    },
     "dualConnect": false,
     "findMy": false,
     "wearDetect": false,

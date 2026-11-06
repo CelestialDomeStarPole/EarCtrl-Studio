@@ -92,6 +92,18 @@ public sealed class Capabilities
     [JsonPropertyName("holdAction")]
     public HoldActionCaps HoldAction { get; set; } = new();
 
+    /// <summary>双击动作（读 01 20 / 写 01 1F）。</summary>
+    [JsonPropertyName("doubleTap")]
+    public GestureCaps DoubleTap { get; set; } = new();
+
+    /// <summary>三击动作（读 01 26 / 写 01 25）。</summary>
+    [JsonPropertyName("tripleTap")]
+    public GestureCaps TripleTap { get; set; } = new();
+
+    /// <summary>连击（五下）动作（2B B4 子功能 0x14）。</summary>
+    [JsonPropertyName("multiTap")]
+    public GestureCaps MultiTap { get; set; } = new();
+
     [JsonPropertyName("dualConnect")]
     public bool DualConnect { get; set; }
 
@@ -136,8 +148,43 @@ public sealed class EqualizerCaps
 
 public sealed class HoldActionCaps
 {
+    /// <summary>左耳可配置长按。</summary>
+    [JsonPropertyName("left")]
+    public bool Left { get; set; }
+
+    /// <summary>右耳可配置长按。</summary>
+    [JsonPropertyName("right")]
+    public bool Right { get; set; }
+
+    /// <summary>长按动作语义 tag（off/anc-cycle/voice-assistant/volume-up/volume-down）。</summary>
     [JsonPropertyName("options")]
     public List<string> Options { get; set; } = [];
+
+    /// <summary>通话中长按语义 tag（off/answer）；空列表 = 不支持。</summary>
+    [JsonPropertyName("inCallOptions")]
+    public List<string> InCallOptions { get; set; } = [];
+
+    /// <summary>长按切换降噪时的循环模式选项（1..4；空列表 = 不暴露该设置）。</summary>
+    [JsonPropertyName("ancCycleOptions")]
+    public List<int> AncCycleOptions { get; set; } = [];
+}
+
+/// <summary>点击类手势能力（双击 / 三击 / 连击）：左右耳可配置 + 动作语义 tag 列表。</summary>
+public sealed class GestureCaps
+{
+    [JsonPropertyName("left")]
+    public bool Left { get; set; }
+
+    [JsonPropertyName("right")]
+    public bool Right { get; set; }
+
+    /// <summary>动作语义 tag 列表（如 off/play-pause/next/prev）。</summary>
+    [JsonPropertyName("options")]
+    public List<string> Options { get; set; } = [];
+
+    /// <summary>通话中动作 tag（空列表 = 不支持在通话中配置）。</summary>
+    [JsonPropertyName("inCallOptions")]
+    public List<string> InCallOptions { get; set; } = [];
 }
 
 /// <summary>Profile 注册表：加载 profiles 目录并做匹配。</summary>

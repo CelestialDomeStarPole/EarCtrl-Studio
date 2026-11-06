@@ -94,6 +94,27 @@ public sealed class DeviceRuntimeState
     /// <summary>EQ 预设原始 id（未知预设时为原始数值，供诊断）。</summary>
     public int? EqPresetId { get; internal set; }
 
+    /// <summary>长按动作原始值（2B17；-1=关闭、10=切换降噪、0=语音助手、18=音量+、19=音量-）。</summary>
+    public int? HoldActionLeft { get; internal set; }
+    public int? HoldActionRight { get; internal set; }
+    /// <summary>通话中长按原始值（2B17 param4；-1=关闭、0=接听）。</summary>
+    public int? HoldActionInCall { get; internal set; }
+    /// <summary>长按 ANC 循环选项原始值（2B19；1..4）。</summary>
+    public int? AncCycleLeft { get; internal set; }
+    public int? AncCycleRight { get; internal set; }
+
+    /// <summary>双击动作原始值（01 20；-1=关闭、0=语音助手、1=播放暂停、2=下一首、7=上一首）。</summary>
+    public int? DoubleTapLeft { get; internal set; }
+    public int? DoubleTapRight { get; internal set; }
+    /// <summary>通话中双击原始值（01 20 param4；-1=关闭、0=接听/挂断）。</summary>
+    public int? DoubleTapInCall { get; internal set; }
+    /// <summary>三击动作原始值（01 26；-1=关闭、2=下一首、7=上一首）。</summary>
+    public int? TripleTapLeft { get; internal set; }
+    public int? TripleTapRight { get; internal set; }
+    /// <summary>连击（五下）原始值（2B B4/0x14；-1=关闭、0=音量+、1=音量-）。</summary>
+    public int? MultiTapLeft { get; internal set; }
+    public int? MultiTapRight { get; internal set; }
+
     /// <summary>可下发控制命令（Agent 就绪且协议链路已连）。</summary>
     public bool IsControllable => SupervisorState == AgentState.Ready && LinkStatus == "connected";
 }
@@ -230,6 +251,33 @@ public sealed class DeviceContext
                 {
                     state.EqPreset = Json.ReadString(eq, "preset") ?? state.EqPreset;
                     state.EqPresetId = Json.ReadInt(eq, "presetId") ?? state.EqPresetId;
+                }
+                if (Json.GetObject(e.Payload, "holdAction") is { } hold)
+                {
+                    state.HoldActionLeft = Json.ReadInt(hold, "left") ?? state.HoldActionLeft;
+                    state.HoldActionRight = Json.ReadInt(hold, "right") ?? state.HoldActionRight;
+                    state.HoldActionInCall = Json.ReadInt(hold, "inCall") ?? state.HoldActionInCall;
+                    state.AncCycleLeft = Json.ReadInt(hold, "ancCycleLeft") ?? state.AncCycleLeft;
+                    state.AncCycleRight = Json.ReadInt(hold, "ancCycleRight") ?? state.AncCycleRight;
+                }
+                if (Json.GetObject(e.Payload, "gestures") is { } gestures)
+                {
+                    if (Json.GetObject(gestures, "double") is { } dbl)
+                    {
+                        state.DoubleTapLeft = Json.ReadInt(dbl, "left") ?? state.DoubleTapLeft;
+                        state.DoubleTapRight = Json.ReadInt(dbl, "right") ?? state.DoubleTapRight;
+                        state.DoubleTapInCall = Json.ReadInt(dbl, "inCall") ?? state.DoubleTapInCall;
+                    }
+                    if (Json.GetObject(gestures, "triple") is { } tri)
+                    {
+                        state.TripleTapLeft = Json.ReadInt(tri, "left") ?? state.TripleTapLeft;
+                        state.TripleTapRight = Json.ReadInt(tri, "right") ?? state.TripleTapRight;
+                    }
+                    if (Json.GetObject(gestures, "multi") is { } multi)
+                    {
+                        state.MultiTapLeft = Json.ReadInt(multi, "left") ?? state.MultiTapLeft;
+                        state.MultiTapRight = Json.ReadInt(multi, "right") ?? state.MultiTapRight;
+                    }
                 }
                 break;
 

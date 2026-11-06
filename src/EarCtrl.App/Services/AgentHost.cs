@@ -207,6 +207,28 @@ public sealed class AgentHost : IAsyncDisposable
         }
     }
 
+    /// <summary>手势设置写入（IPC setGesture；gesture=long|double|triple|multi，kind=action|inCall|ancCycle）。</summary>
+    public async Task SetGestureAsync(string brand, string gesture, string kind, string side, string value)
+    {
+        var supervisor = GetSupervisor(brand) ?? throw new InvalidOperationException("设备未就绪");
+        var response = await supervisor.SendAsync("setGesture", new { gesture, kind, side, value });
+        if (!response.Ok)
+        {
+            throw new InvalidOperationException(response.Error?.Message ?? "setGesture 失败");
+        }
+    }
+
+    /// <summary>手势设置查询（IPC queryGesture；UI pending 期间周期调用，状态由回报帧驱动）。</summary>
+    public async Task QueryGestureAsync(string brand)
+    {
+        var supervisor = GetSupervisor(brand) ?? throw new InvalidOperationException("设备未就绪");
+        var response = await supervisor.SendAsync("queryGesture");
+        if (!response.Ok)
+        {
+            throw new InvalidOperationException(response.Error?.Message ?? "queryGesture 失败");
+        }
+    }
+
     /// <summary>当前设备下发防风噪开关（AncPage/动态档强制共用；IPC setWindNoise）。全局状态：所有非动态档共用。</summary>
     public async Task SetWindNoiseAsync(string brand, bool enabled)
     {
@@ -217,7 +239,6 @@ public sealed class AgentHost : IAsyncDisposable
             throw new InvalidOperationException(response.Error?.Message ?? "setWindNoise 失败");
         }
     }
-
     /// <summary>当前设备查询防风噪状态（IPC queryWindNoise；「2B70 使能 → 读请求」成对，回报帧异步驱动 stateChanged）。</summary>
     public async Task QueryWindNoiseAsync(string brand)
     {

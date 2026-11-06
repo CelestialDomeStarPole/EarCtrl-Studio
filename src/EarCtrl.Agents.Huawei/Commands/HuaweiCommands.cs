@@ -20,6 +20,22 @@ public static class Cmd
     /// <summary>子功能开关总线（官方 MbbAbilityManager：param1=[子功能号]，param2=[开关状态]）。
     /// 0x1D=防风噪（官方 FeatureMbbState.WIND_NOISE_PREVENTION，featureKey=29）。</summary>
     public static readonly byte[] MbbFeatureSwitch = [0x2B, 0xB4];
+    /// <summary>连击（五下）子功能号（官方 MultipleClickEvent.ID_MULTIPLE_CLICK_FUNCTION=20）。</summary>
+    public const byte MultiTapFeatureId = 0x14;
+    /// <summary>双击动作读/写（官方 DoubleClickEvent：读 01 20、写 01 1F）。</summary>
+    public static readonly byte[] DualTapRead = [0x01, 0x20];
+    public static readonly byte[] DualTapWrite = [0x01, 0x1F];
+    /// <summary>三击动作读/写（官方 TripleClickEvent：读 01 26、写 01 25）。</summary>
+    public static readonly byte[] TripleTapRead = [0x01, 0x26];
+    public static readonly byte[] TripleTapWrite = [0x01, 0x25];
+    /// <summary>长按（触控）动作读：params[1,2]=左/右耳（OpenFreebuds action_long_tap_split，SE 4 同款）。</summary>
+    public static readonly byte[] LongTapRead = [0x2B, 0x17];
+    /// <summary>长按动作写：param1=左 / param2=右，单字节有符号值。</summary>
+    public static readonly byte[] LongTapWrite = [0x2B, 0x16];
+    /// <summary>长按 ANC 循环选项读：params[1,2]=左/右耳。</summary>
+    public static readonly byte[] LongTapAncRead = [0x2B, 0x19];
+    /// <summary>长按 ANC 循环选项写：param1=左 / param2=右，单字节有符号值。</summary>
+    public static readonly byte[] LongTapAncWrite = [0x2B, 0x18];
 }
 
 public enum AncMode
@@ -214,5 +230,109 @@ public static class HuaweiCommands
         if (feature.Length != 1 || feature[0] != WindNoiseFeatureId) return null;
         var state = pkg.FindParam(2);
         return state.Length == 1 ? state[0] == 0x01 : null;
+    }
+
+    // ---- 长按（触控）设置（OpenFreebuds action_long_tap_split，SE 4 同款；协议笔记 §7.11）----
+
+    /// <summary>长按动作读请求：2B17 params[1,2]=左/右耳（空值读）。</summary>
+    public static HuaweiSppPackage LongTapReadNoWaitRequest()
+    {
+        var pkg = HuaweiSppPackage.ChangeRequest(Cmd.LongTapRead, (1, []), (2, []));
+        pkg.ResponseId = [];
+        return pkg;
+    }
+
+    /// <summary>长按 ANC 循环选项读请求：2B19 params[1,2]=左/右耳（空值读）。</summary>
+    public static HuaweiSppPackage LongTapAncReadNoWaitRequest()
+    {
+        var pkg = HuaweiSppPackage.ChangeRequest(Cmd.LongTapAncRead, (1, []), (2, []));
+        pkg.ResponseId = [];
+        return pkg;
+    }
+
+    /// <summary>
+    /// 长按动作写：2B16 param(side)=值。
+    /// side 1=左耳 / 2=右耳 / 4=通话中；值（sbyte）：-1=关闭、10=切换降噪、0=语音助手、18=音量+、19=音量-（通话中为 -1/0=接听）。
+    /// </summary>
+    public static HuaweiSppPackage LongTapSetRequest(int side, sbyte value) =>
+        HuaweiSppPackage.ChangeRequestNoWait(Cmd.LongTapWrite, (side, [(byte)value]));
+
+    /// <summary>长按 ANC 循环选项写：2B18 param(side)=值（1..4 见 Profile ancCycleOptions）。</summary>
+    public static HuaweiSppPackage LongTapAncSetRequest(int side, sbyte value) =>
+        HuaweiSppPackage.ChangeRequestNoWait(Cmd.LongTapAncWrite, (side, [(byte)value]));
+
+    /// <summary>解析长按动作回报（2B17）：param1/2=左右耳动作、param4=通话中动作（均为单字节有符号值）。</summary>
+    public static (int? Left, int? Right, int? InCall)? ParseLongTap(HuaweiSppPackage pkg)
+    {
+        var left = SignedParam(pkg, 1);
+        var right = SignedParam(pkg, 2);
+        var inCall = SignedParam(pkg, 4);
+        if (left is null && right is null && inCall is null) return null;
+        return (left, right, inCall);
+    }
+
+    /// <summary>解析长按 ANC 循环口径（2B19）：param1/2=左/右耳选项值。</summary>
+    public static (int? Left, int? Right)? ParseLongTapAncCycle(HuaweiSppPackage pkg)
+    {
+        var left = SignedParam(pkg, 1);
+        var right = SignedParam(pkg, 2);
+        if (left is null && right is null) return null;
+        return (left, right);
+    }
+
+    private static int? SignedParam(HuaweiSppPackage pkg, int type)
+    {
+        var value = pkg.FindParam(type);
+        return value.Length == 1 ? (sbyte)value[0] : null;
+    }
+
+    // ---- 双击 / 三击 / 连击（官方逆向与 OpenFreebuds 对照，协议笔记 §7.10）----
+
+    /// <summary>双击动作读请求：01 20 params[1,2,4]（左/右/通话中，空值读）。</summary>
+    public static HuaweiSppPackage DualTapReadNoWaitRequest()
+    {
+        var pkg = HuaweiSppPackage.ChangeRequest(Cmd.DualTapRead, (1, []), (2, []), (4, []));
+        pkg.ResponseId = [];
+        return pkg;
+    }
+
+    /// <summary>三击动作读请求：01 26 params[1,2]（左/右，空值读）。</summary>
+    public static HuaweiSppPackage TripleTapReadNoWaitRequest()
+    {
+        var pkg = HuaweiSppPackage.ChangeRequest(Cmd.TripleTapRead, (1, []), (2, []));
+        pkg.ResponseId = [];
+        return pkg;
+    }
+
+    /// <summary>连击（五下）读请求：2B B4 | 01 01 14 | 04 00（读可用值列表，回帧带当前左右值）。</summary>
+    public static HuaweiSppPackage MultiTapReadNoWaitRequest() =>
+        HuaweiSppPackage.ChangeRequestNoWait(Cmd.MbbFeatureSwitch, (1, [Cmd.MultiTapFeatureId]), (4, []));
+
+    /// <summary>双击/三击动作写：side 1=左 / 2=右 / 4=通话中；值见 profile 选项（sbyte）。</summary>
+    public static HuaweiSppPackage TapSetRequest(byte[] writeCommand, int side, sbyte value) =>
+        HuaweiSppPackage.ChangeRequestNoWait(writeCommand, (side, [(byte)value]));
+
+    /// <summary>连击（五下）写：官方 param2=左 / param3=右（注意与双击 param1/2 编号不同）。</summary>
+    public static HuaweiSppPackage MultiTapSetRequest(bool right, sbyte value) =>
+        HuaweiSppPackage.ChangeRequestNoWait(Cmd.MbbFeatureSwitch,
+            (1, [Cmd.MultiTapFeatureId]), (right ? 3 : 2, [(byte)value]));
+
+    /// <summary>解析双击/三击回报：param1/2=左右耳、param4=通话中（单字节有符号值）。</summary>
+    public static (int? Left, int? Right, int? InCall)? ParseTap(HuaweiSppPackage pkg)
+    {
+        var left = SignedParam(pkg, 1);
+        var right = SignedParam(pkg, 2);
+        var inCall = SignedParam(pkg, 4);
+        if (left is null && right is null && inCall is null) return null;
+        return (left, right, inCall);
+    }
+
+    /// <summary>解析连击回报：param2=左、param3=右（官方 MultipleClick 解析器）。</summary>
+    public static (int? Left, int? Right)? ParseMultiTap(HuaweiSppPackage pkg)
+    {
+        var left = SignedParam(pkg, 2);
+        var right = SignedParam(pkg, 3);
+        if (left is null && right is null) return null;
+        return (left, right);
     }
 }

@@ -21,7 +21,7 @@ public sealed class PageProvider : INavigationViewPageProvider
         var t when t == typeof(SettingsPage) => new SettingsPage(),
         var t when t == typeof(AncPage) => new AncPage(),
         var t when t == typeof(EqualizerPage) => new EqualizerPage(),
-        var t when t == typeof(ControlsPlaceholder) => new ControlsPlaceholder(),
+        var t when t == typeof(ControlsPage) => new ControlsPage(),
         var t when t == typeof(IntegrationPage) => new IntegrationPage(),
         var t when t == typeof(AdvancedPlaceholder) => new AdvancedPlaceholder(),
         var t when t == typeof(DevToolsPage) => new DevToolsPage(),

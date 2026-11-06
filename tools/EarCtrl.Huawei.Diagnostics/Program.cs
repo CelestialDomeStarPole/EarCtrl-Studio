@@ -227,23 +227,28 @@ switch (options.Command)
 
     case "longpress":
     {
-        // 长按（触控）设置协议探测：官方 APK 证据 = 2B B4 子功能总线 0x17（COMMAND_ID_GET_LONG_PRESS=23）。
-        // 依次尝试 param2/3/5/7 空值读请求，打印全部回帧以确定真实结构（写入前必须完成本实验）。
+        // 长按（触控）设置协议：OpenFreebuds action_long_tap_split（SE 4 同款 handler）
+        //   读动作：2B17 params[1,2]（左/右）；读 ANC 循环选项：2B19 params[1,2]
+        //   写动作：2B16；写 ANC 循环：2B18（均为 param1=左 / param2=右，单字节有符号值）
         var t0 = DateTime.Now;
         client.RawFrame += (dir, bytes) =>
             Console.Out.WriteLine($"{DateTime.Now - t0:mm\\:ss\\.fff} [{dir}] {Convert.ToHexString(bytes)}");
         _ = Task.Run(async () =>
         {
             await Task.Delay(300);
-            foreach (var param in new[] { 2, 3, 5, 7 })
+            foreach (var (cmd, label) in new[]
+                     {
+                         (Cmd.LongTapRead, "2B17 long-tap action (left/right)"),
+                         (Cmd.LongTapAncRead, "2B19 ANC cycle options (left/right)"),
+                     })
             {
-                Console.Out.WriteLine($"=== READ long-press: 2BB4 | 0101 17 | param{param}=empty ===");
+                Console.Out.WriteLine($"=== READ {label} ===");
                 try
                 {
                     await client.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
                     await Task.Delay(200);
-                    var probe = HuaweiSppPackage.ChangeRequestNoWait(Cmd.MbbFeatureSwitch, (1, [0x17]), (param, []));
-                    await client.SendPackageAsync(probe);
+                    await client.SendPackageAsync(
+                        HuaweiSppPackage.ChangeRequestNoWait(cmd, (1, []), (2, [])));
                 }
                 catch (Exception ex)
                 {
@@ -251,7 +256,7 @@ switch (options.Command)
                 }
                 await Task.Delay(1500);
             }
-            Console.Out.WriteLine("=== DONE. 判读：有 2BB4 回帧 → 记录 param 号/长度/值；全无回帧 → 该设备不暴露长按配置 ===");
+            Console.Out.WriteLine("=== DONE. 判读：2B17/2B19 回帧 param1/param2 单字节值 = 左右耳当前设置；全无回帧 → 不暴露长按配置 ===");
         });
         await Task.Delay(Timeout.Infinite);
         break;

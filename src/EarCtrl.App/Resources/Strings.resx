@@ -119,6 +119,49 @@
   <data name="Settings.AutoStart.Desc" xml:space="preserve"><value>登录 Windows 后自动启动 EarCtrl Studio（写入当前用户启动项）。</value></data>
   <data name="Settings.AutoStart.Failed" xml:space="preserve"><value>无法写入当前用户启动项，请检查权限。</value></data>
 
+  <!-- 触控（M4：长按 2B17/2B19 读、2B16/2B18 写） -->
+  <data name="Controls.HoldAction" xml:space="preserve"><value>长按动作</value></data>
+  <data name="Controls.HoldAction.Desc" xml:space="preserve"><value>长按耳机触控区时执行的操作，左右耳可分别设置。</value></data>
+  <data name="Controls.Left" xml:space="preserve"><value>左耳</value></data>
+  <data name="Controls.Right" xml:space="preserve"><value>右耳</value></data>
+  <data name="Controls.InCall" xml:space="preserve"><value>通话中长按</value></data>
+  <data name="Controls.AncCycle" xml:space="preserve"><value>长按切换降噪的循环模式</value></data>
+  <data name="Controls.AncCycle.Desc" xml:space="preserve"><value>长按动作设为「切换降噪」时，按顺序循环的降噪模式组合（左右耳独立）。</value></data>
+  <data name="Controls.NotSupported" xml:space="preserve"><value>该设备不支持长按设置。</value></data>
+  <data name="Controls.Timeout" xml:space="preserve"><value>耳机未确认长按设置，请重试。</value></data>
+  <data name="Controls.Action.off" xml:space="preserve"><value>关闭</value></data>
+  <data name="Controls.Action.anc-cycle" xml:space="preserve"><value>切换降噪</value></data>
+  <data name="Controls.Action.voice-assistant" xml:space="preserve"><value>语音助手</value></data>
+  <data name="Controls.Action.volume-up" xml:space="preserve"><value>音量 +</value></data>
+  <data name="Controls.Action.volume-down" xml:space="preserve"><value>音量 −</value></data>
+  <data name="Controls.InCall.off" xml:space="preserve"><value>无操作</value></data>
+  <data name="Controls.InCall.reject-call" xml:space="preserve"><value>拒接来电</value></data>
+  <data name="Controls.AncCycle.1" xml:space="preserve"><value>关闭 / 降噪</value></data>
+  <data name="Controls.AncCycle.2" xml:space="preserve"><value>关闭 / 降噪 / 透传</value></data>
+  <data name="Controls.AncCycle.3" xml:space="preserve"><value>降噪 / 透传</value></data>
+  <data name="Controls.AncCycle.4" xml:space="preserve"><value>关闭 / 透传</value></data>
+
+  <!-- 触控（M4：双击 0120/011F、三击 0126/0125、连击 2B B4/0x14） -->
+  <data name="Controls.DoubleTap" xml:space="preserve"><value>敲击两下</value></data>
+  <data name="Controls.DoubleTap.Desc" xml:space="preserve"><value>敲击任意耳机两下时执行的操作；通话中与非通话可分别设置左右耳。</value></data>
+  <data name="Controls.TripleTap" xml:space="preserve"><value>敲击三下</value></data>
+  <data name="Controls.TripleTap.Desc" xml:space="preserve"><value>敲击耳机三下时执行的操作，左右耳可分别设置。</value></data>
+  <data name="Controls.MultiTap" xml:space="preserve"><value>连续敲击五下</value></data>
+  <data name="Controls.MultiTap.Desc" xml:space="preserve"><value>连续敲击耳机五下时执行的操作，左右耳可分别设置。</value></data>
+  <data name="Controls.DoubleTap.off" xml:space="preserve"><value>无操作</value></data>
+  <data name="Controls.DoubleTap.play-pause" xml:space="preserve"><value>播放 / 暂停</value></data>
+  <data name="Controls.DoubleTap.next" xml:space="preserve"><value>下一首</value></data>
+  <data name="Controls.DoubleTap.prev" xml:space="preserve"><value>上一首</value></data>
+  <data name="Controls.DoubleTap.voice-assistant" xml:space="preserve"><value>语音助手</value></data>
+  <data name="Controls.DoubleInCall.off" xml:space="preserve"><value>无操作</value></data>
+  <data name="Controls.DoubleInCall.answer" xml:space="preserve"><value>接听 / 挂断来电</value></data>
+  <data name="Controls.TripleTap.off" xml:space="preserve"><value>无操作</value></data>
+  <data name="Controls.TripleTap.next" xml:space="preserve"><value>下一首</value></data>
+  <data name="Controls.TripleTap.prev" xml:space="preserve"><value>上一首</value></data>
+  <data name="Controls.MultiTap.off" xml:space="preserve"><value>无操作</value></data>
+  <data name="Controls.MultiTap.volume-up" xml:space="preserve"><value>增大音量</value></data>
+  <data name="Controls.MultiTap.volume-down" xml:space="preserve"><value>减小音量</value></data>
+
   <!-- 集成（M4） -->
   <data name="Integration.Notifications" xml:space="preserve"><value>通知</value></data>
   <data name="Integration.LowBattery" xml:space="preserve"><value>低电量提醒</value></data>

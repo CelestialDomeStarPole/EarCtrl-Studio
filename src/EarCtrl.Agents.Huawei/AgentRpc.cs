@@ -35,6 +35,23 @@ public sealed class AgentRpc : IAsyncDisposable
     /// <summary>当前 EQ 预设 id（2B4A param2；null=未知）。</summary>
     private int? _eqPreset;
     private bool? _windNoise;
+    /// <summary>长按动作（2B17 param1/2/4）：-1=关闭、10=切换降噪、0=语音助手、18=音量+、19=音量-（通话中 -1/0=接听）。</summary>
+    private int? _holdActionLeft;
+    private int? _holdActionRight;
+    private int? _holdActionInCall;
+    /// <summary>长按 ANC 循环选项（2B19 param1/2，1..4）。</summary>
+    private int? _ancCycleLeft;
+    private int? _ancCycleRight;
+    /// <summary>双击动作（01 20 param1/2/4）。</summary>
+    private int? _doubleLeft;
+    private int? _doubleRight;
+    private int? _doubleInCall;
+    /// <summary>三击动作（01 26 param1/2）。</summary>
+    private int? _tripleLeft;
+    private int? _tripleRight;
+    /// <summary>连击（五下）动作（2B B4 / 0x14 param2/3）。</summary>
+    private int? _multiLeft;
+    private int? _multiRight;
     private bool _rawSubscribed;
     private DateTime _lastActivity = DateTime.UtcNow;
     private DateTime _lastHeartbeat = DateTime.UtcNow;
@@ -43,6 +60,8 @@ public sealed class AgentRpc : IAsyncDisposable
     private Timer? _orphanTimer;
     /// <summary>链路操作互斥：connect/disconnect/L3 自愈串行化，杜绝「断开被并发重连抢回」竞态。</summary>
     private readonly SemaphoreSlim _linkGate = new(1, 1);
+    /// <summary>手势查询串行化（会话初始化与 UI 主动查询共用）。</summary>
+    private readonly SemaphoreSlim _gestureQueryGate = new(1, 1);
     private int _selfHealFailures;
     private bool _selfHealSurrendered;
     private bool _lastObservedDevicePresent = true;
@@ -69,8 +88,12 @@ public sealed class AgentRpc : IAsyncDisposable
         _link.OnNotify(Cmd.KeepAlive, _ => Task.CompletedTask);    // 2B70 回包（param1=[01]）吞掉，避免未注册告警
         _link.OnNotify(Cmd.AncRead, OnAncFrame);       // 写确认帧 2B2A
         _link.OnNotify(Cmd.AncChangeEvent, OnAncChangeEventAsync); // 耳机按键事件 2B03（param1=[level,mode]）
-        _link.OnNotify(Cmd.MbbFeatureSwitch, OnWindNoiseFrame);   // 2B B4 子功能总线回报帧（param1=[0x1D] 防风噪）
+        _link.OnNotify(Cmd.MbbFeatureSwitch, OnMbbFeatureFrame);  // 2B B4 子功能总线回报帧（0x1D 防风噪 / 0x14 连击）
         _link.OnNotify(Cmd.EqRead, OnEqFrame);                    // 2B4A：EQ 读响应 / 写确认（param2=当前预设 id）
+        _link.OnNotify(Cmd.LongTapRead, OnLongTapFrame);          // 2B17：长按动作读响应
+        _link.OnNotify(Cmd.LongTapAncRead, OnAncCycleFrame);      // 2B19：长按 ANC 循环选项读响应
+        _link.OnNotify(Cmd.DualTapRead, OnTapFrame);              // 01 20：双击动作读响应
+        _link.OnNotify(Cmd.TripleTapRead, OnTapFrame);            // 01 26：三击动作读响应
     }
 
     /// <summary>优雅退出信号（Program await 它后返回退出码 0）。</summary>
@@ -151,6 +174,11 @@ public sealed class AgentRpc : IAsyncDisposable
 
             case "setEq":
                 return await SetEqAsync(request.Params);
+            case "setGesture":
+                return await SetGestureAsync(request.Params);
+            case "queryGesture":
+                await QueryGestureAsync();
+                return null;
 
             case "setLowLatency":
                 return await SetLowLatencyAsync(request.Params);
@@ -537,14 +565,207 @@ public sealed class AgentRpc : IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    private Task OnWindNoiseFrame(HuaweiSppPackage pkg)
+    /// <summary>2B B4 子功能总线回报：0x1D 防风噪 / 0x14 连击（五下）。</summary>
+    private Task OnMbbFeatureFrame(HuaweiSppPackage pkg)
     {
-        // param1 非 0x1D 的 2B B4 帧 = 其他子功能（0x1C AI 音效等），忽略
         if (HuaweiCommands.ParseWindNoise(pkg) is { } enabled)
         {
             _windNoise = enabled;
             PublishStateIfChanged();
+            return Task.CompletedTask;
         }
+        var feature = pkg.FindParam(1);
+        if (feature.Length == 1 && feature[0] == Cmd.MultiTapFeatureId
+            && HuaweiCommands.ParseMultiTap(pkg) is { } multi)
+        {
+            _multiLeft = multi.Left ?? _multiLeft;
+            _multiRight = multi.Right ?? _multiRight;
+            PublishStateIfChanged();
+        }
+        return Task.CompletedTask;
+    }
+
+    // ---- 手势设置（长按 2B17/2B19/2B16/2B18；双击 0120/011F；三击 0126/0125；连击 2BB4-0x14）----
+
+    /// <summary>长按动作语义 tag → 协议值（sbyte）。</summary>
+    private static readonly Dictionary<string, sbyte> HoldActionValues = new()
+    {
+        ["off"] = -1,
+        ["anc-cycle"] = 10,
+        ["voice-assistant"] = 0,
+        ["volume-up"] = 18,
+        ["volume-down"] = 19,
+    };
+
+    /// <summary>通话中长按语义 tag → 协议值（sbyte）。（官方 LongPressEvent：0=拒接来电、255/-1=无操作）</summary>
+    private static readonly Dictionary<string, sbyte> InCallActionValues = new()
+    {
+        ["off"] = -1,
+        ["reject-call"] = 0,
+    };
+
+    /// <summary>双击/通话中双击语义 tag → 协议值。（官方 DoubleClickTouchSettingType）</summary>
+    private static readonly Dictionary<string, sbyte> DoubleTapValues = new()
+    {
+        ["off"] = -1,
+        ["voice-assistant"] = 0,
+        ["play-pause"] = 1,
+        ["next"] = 2,
+        ["prev"] = 7,
+    };
+
+    private static readonly Dictionary<string, sbyte> DoubleTapInCallValues = new()
+    {
+        ["off"] = -1,
+        ["answer"] = 0,
+    };
+
+    /// <summary>三击语义 tag → 协议值（官方 TripleClick：2=下一首、7=上一首）。</summary>
+    private static readonly Dictionary<string, sbyte> TripleTapValues = new()
+    {
+        ["off"] = -1,
+        ["next"] = 2,
+        ["prev"] = 7,
+    };
+
+    /// <summary>连击（五下）语义 tag → 协议值（官方 MultipleClick：0=音量+、1=音量-）。</summary>
+    private static readonly Dictionary<string, sbyte> MultiTapValues = new()
+    {
+        ["off"] = -1,
+        ["volume-up"] = 0,
+        ["volume-down"] = 1,
+    };
+
+    /// <summary>
+    /// IPC setGesture：gesture=long|double|triple|multi，kind=action|inCall|ancCycle，
+    /// side=left|right，value=语义 tag（ancCycle 为数值字符串）。
+    /// </summary>
+    private async Task<object> SetGestureAsync(JsonElement? parameters)
+    {
+        var gesture = ReadString(parameters, "gesture") ?? throw new ArgumentException("缺少 gesture");
+        var kind = ReadString(parameters, "kind") ?? "action";
+        var side = ReadString(parameters, "side") ?? "left";
+        var value = ReadString(parameters, "value") ?? throw new ArgumentException("缺少 value");
+        var sideParam = side == "right" ? 2 : 1;
+        if (!_link.Started) throw new InvalidOperationException("链路未连接");
+
+        HuaweiSppPackage request = (gesture, kind) switch
+        {
+            ("long", "action") => HuaweiCommands.LongTapSetRequest(sideParam, MapGestureValue(HoldActionValues, value)),
+            ("long", "inCall") => HuaweiCommands.LongTapSetRequest(4, MapGestureValue(InCallActionValues, value)),
+            ("long", "ancCycle") => HuaweiCommands.LongTapAncSetRequest(sideParam, ParseAncCycleValue(value)),
+            ("double", "action") => HuaweiCommands.TapSetRequest(Cmd.DualTapWrite, sideParam, MapGestureValue(DoubleTapValues, value)),
+            ("double", "inCall") => HuaweiCommands.TapSetRequest(Cmd.DualTapWrite, 4, MapGestureValue(DoubleTapInCallValues, value)),
+            ("triple", "action") => HuaweiCommands.TapSetRequest(Cmd.TripleTapWrite, sideParam, MapGestureValue(TripleTapValues, value)),
+            ("multi", "action") => HuaweiCommands.MultiTapSetRequest(side == "right", MapGestureValue(MultiTapValues, value)),
+            _ => throw new ArgumentException($"未知手势 {gesture}/{kind}"),
+        };
+
+        // 「2B70 开路 → 写」成对；写确认帧未见实测记录，300ms 后读回由回报帧驱动快照
+        await _link.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+        await Task.Delay(200);
+        if (!_link.Started) throw new InvalidOperationException("链路未连接");
+        await _link.SendPackageAsync(request);
+        await Task.Delay(300);
+        await QueryGestureCoreAsync();
+        return StateSnapshot();
+    }
+
+    /// <summary>IPC queryGesture：UI pending 期间周期调用，读回状态由回报帧驱动 stateChanged。</summary>
+    private async Task QueryGestureAsync()
+    {
+        if (!_link.Started) throw new InvalidOperationException("链路未连接");
+        await QueryGestureCoreAsync();
+    }
+
+    private async Task QueryGestureCoreAsync()
+    {
+        // 串行化：会话初始化与 UI 主动查询可能同时触发，交错发送会加剧丢帧
+        await _gestureQueryGate.WaitAsync(_cts.Token);
+        try
+        {
+            // 耳机对连续查询有节流：实测 5 组按 150ms 连发时只回约 3 组（页面打开后部分手势为空），
+            // 因此每组之间留足间隔（2B70 后 200ms + 读后 700ms），保证一次查询能拿全。
+            foreach (var request in new[]
+                     {
+                         HuaweiCommands.LongTapReadNoWaitRequest(),
+                         HuaweiCommands.LongTapAncReadNoWaitRequest(),
+                         HuaweiCommands.DualTapReadNoWaitRequest(),
+                         HuaweiCommands.TripleTapReadNoWaitRequest(),
+                         HuaweiCommands.MultiTapReadNoWaitRequest(),
+                     })
+            {
+                if (!_link.Started) return;
+                await _link.SendPackageAsync(HuaweiSppPackage.ChangeRequestNoWait(Cmd.KeepAlive, (1, [0xCB])));
+                await Task.Delay(200);
+                if (!_link.Started) return;
+                await _link.SendPackageAsync(request);
+                await Task.Delay(700);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            _gestureQueryGate.Release();
+        }
+    }
+
+    private static sbyte MapGestureValue(IReadOnlyDictionary<string, sbyte> table, string value) =>
+        table.TryGetValue(value, out var raw)
+            ? raw
+            : throw new ArgumentException($"未知手势动作 {value}");
+
+    private static sbyte ParseAncCycleValue(string value) =>
+        sbyte.TryParse(value, out var cycle)
+            ? cycle
+            : throw new ArgumentException($"未知 ANC 循环选项 {value}");
+
+    /// <summary>2B17 回报：param1/2=左右耳动作、param4=通话中动作（null 表示该字段无值）。</summary>
+    private Task OnLongTapFrame(HuaweiSppPackage pkg)
+    {
+        if (HuaweiCommands.ParseLongTap(pkg) is { } parsed)
+        {
+            _holdActionLeft = parsed.Left ?? _holdActionLeft;
+            _holdActionRight = parsed.Right ?? _holdActionRight;
+            _holdActionInCall = parsed.InCall ?? _holdActionInCall;
+            PublishStateIfChanged();
+        }
+        return Task.CompletedTask;
+    }
+
+    /// <summary>2B19 回报：param1/2=左/右耳 ANC 循环选项值。</summary>
+    private Task OnAncCycleFrame(HuaweiSppPackage pkg)
+    {
+        if (HuaweiCommands.ParseLongTapAncCycle(pkg) is { } parsed)
+        {
+            _ancCycleLeft = parsed.Left ?? _ancCycleLeft;
+            _ancCycleRight = parsed.Right ?? _ancCycleRight;
+            PublishStateIfChanged();
+        }
+        return Task.CompletedTask;
+    }
+
+    /// <summary>01 20（双击）/ 01 26（三击）回报：param1/2=左右耳、param4=通话中。</summary>
+    private Task OnTapFrame(HuaweiSppPackage pkg)
+    {
+        if (HuaweiCommands.ParseTap(pkg) is not { } parsed)
+        {
+            return Task.CompletedTask;
+        }
+        if (pkg.CommandId.AsSpan().SequenceEqual(Cmd.DualTapRead))
+        {
+            _doubleLeft = parsed.Left ?? _doubleLeft;
+            _doubleRight = parsed.Right ?? _doubleRight;
+            _doubleInCall = parsed.InCall ?? _doubleInCall;
+        }
+        else if (pkg.CommandId.AsSpan().SequenceEqual(Cmd.TripleTapRead))
+        {
+            _tripleLeft = parsed.Left ?? _tripleLeft;
+            _tripleRight = parsed.Right ?? _tripleRight;
+        }
+        PublishStateIfChanged();
         return Task.CompletedTask;
     }
 
@@ -625,6 +846,10 @@ public sealed class AgentRpc : IAsyncDisposable
             await Task.Delay(150, ct);
             if (!_link.Started) return;
             await _link.SendPackageAsync(HuaweiCommands.EqReadNoWaitRequest());
+            await Task.Delay(150, ct);
+            if (!_link.Started) return;
+            // 手势设置查询（长按 2B17/2B19、双击 0120、三击 0126、连击 2BB4-0x14）：回报帧经 OnNotify 驱动快照
+            await QueryGestureCoreAsync();
         }
         catch (OperationCanceledException) { }
         catch { /* 初始化失败不致命：轮询下一拍兜底 */ }
@@ -701,6 +926,33 @@ public sealed class AgentRpc : IAsyncDisposable
             {
                 preset = HuaweiCommands.EqPresets.TryGetValue((byte)_eqPreset.Value, out var name) ? name : null,
                 presetId = _eqPreset.Value,
+            },
+        holdAction = (_holdActionLeft is null && _holdActionRight is null && _holdActionInCall is null
+                      && _ancCycleLeft is null && _ancCycleRight is null)
+            ? null
+            : new
+            {
+                left = _holdActionLeft,
+                right = _holdActionRight,
+                inCall = _holdActionInCall,
+                ancCycleLeft = _ancCycleLeft,
+                ancCycleRight = _ancCycleRight,
+            },
+        gestures = (_doubleLeft is null && _doubleRight is null && _doubleInCall is null
+                    && _tripleLeft is null && _tripleRight is null
+                    && _multiLeft is null && _multiRight is null)
+            ? null
+            : new
+            {
+                @double = (_doubleLeft is null && _doubleRight is null && _doubleInCall is null)
+                    ? null
+                    : new { left = _doubleLeft, right = _doubleRight, inCall = _doubleInCall },
+                triple = (_tripleLeft is null && _tripleRight is null)
+                    ? null
+                    : new { left = _tripleLeft, right = _tripleRight },
+                multi = (_multiLeft is null && _multiRight is null)
+                    ? null
+                    : new { left = _multiLeft, right = _multiRight },
             },
     };
 

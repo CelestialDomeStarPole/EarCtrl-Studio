@@ -119,6 +119,49 @@
   <data name="Settings.AutoStart.Desc" xml:space="preserve"><value>Launch EarCtrl Studio automatically after signing in (adds a per-user startup entry).</value></data>
   <data name="Settings.AutoStart.Failed" xml:space="preserve"><value>Could not update the per-user startup entry (permission denied).</value></data>
 
+  <!-- Controls (M4: long press 2B17/2B19 read, 2B16/2B18 write) -->
+  <data name="Controls.HoldAction" xml:space="preserve"><value>Long-press action</value></data>
+  <data name="Controls.HoldAction.Desc" xml:space="preserve"><value>Action performed when the touch area is pressed and held; left and right can be configured separately.</value></data>
+  <data name="Controls.Left" xml:space="preserve"><value>Left earbud</value></data>
+  <data name="Controls.Right" xml:space="preserve"><value>Right earbud</value></data>
+  <data name="Controls.InCall" xml:space="preserve"><value>In-call long press</value></data>
+  <data name="Controls.AncCycle" xml:space="preserve"><value>Noise-control cycle on long press</value></data>
+  <data name="Controls.AncCycle.Desc" xml:space="preserve"><value>Noise-control modes cycled in order when the long-press action is set to "Cycle noise control" (independent per earbud).</value></data>
+  <data name="Controls.NotSupported" xml:space="preserve"><value>This device does not support long-press settings.</value></data>
+  <data name="Controls.Timeout" xml:space="preserve"><value>The earbuds did not confirm the long-press setting. Try again.</value></data>
+  <data name="Controls.Action.off" xml:space="preserve"><value>Disabled</value></data>
+  <data name="Controls.Action.anc-cycle" xml:space="preserve"><value>Cycle noise control</value></data>
+  <data name="Controls.Action.voice-assistant" xml:space="preserve"><value>Voice assistant</value></data>
+  <data name="Controls.Action.volume-up" xml:space="preserve"><value>Volume up</value></data>
+  <data name="Controls.Action.volume-down" xml:space="preserve"><value>Volume down</value></data>
+  <data name="Controls.InCall.off" xml:space="preserve"><value>Disabled</value></data>
+  <data name="Controls.InCall.reject-call" xml:space="preserve"><value>Reject call</value></data>
+  <data name="Controls.AncCycle.1" xml:space="preserve"><value>Off / Noise cancellation</value></data>
+  <data name="Controls.AncCycle.2" xml:space="preserve"><value>Off / Noise cancellation / Awareness</value></data>
+  <data name="Controls.AncCycle.3" xml:space="preserve"><value>Noise cancellation / Awareness</value></data>
+  <data name="Controls.AncCycle.4" xml:space="preserve"><value>Off / Awareness</value></data>
+
+  <!-- Controls (M4: double tap 0120/011F, triple tap 0126/0125, multi tap 2B B4/0x14) -->
+  <data name="Controls.DoubleTap" xml:space="preserve"><value>Double tap</value></data>
+  <data name="Controls.DoubleTap.Desc" xml:space="preserve"><value>Action performed when either earbud is tapped twice; in-call and non-call can be configured per earbud.</value></data>
+  <data name="Controls.TripleTap" xml:space="preserve"><value>Triple tap</value></data>
+  <data name="Controls.TripleTap.Desc" xml:space="preserve"><value>Action performed when an earbud is tapped three times; configurable per earbud.</value></data>
+  <data name="Controls.MultiTap" xml:space="preserve"><value>Five taps</value></data>
+  <data name="Controls.MultiTap.Desc" xml:space="preserve"><value>Action performed when an earbud is tapped five times in a row; configurable per earbud.</value></data>
+  <data name="Controls.DoubleTap.off" xml:space="preserve"><value>Disabled</value></data>
+  <data name="Controls.DoubleTap.play-pause" xml:space="preserve"><value>Play / pause</value></data>
+  <data name="Controls.DoubleTap.next" xml:space="preserve"><value>Next track</value></data>
+  <data name="Controls.DoubleTap.prev" xml:space="preserve"><value>Previous track</value></data>
+  <data name="Controls.DoubleTap.voice-assistant" xml:space="preserve"><value>Voice assistant</value></data>
+  <data name="Controls.DoubleInCall.off" xml:space="preserve"><value>Disabled</value></data>
+  <data name="Controls.DoubleInCall.answer" xml:space="preserve"><value>Answer / end call</value></data>
+  <data name="Controls.TripleTap.off" xml:space="preserve"><value>Disabled</value></data>
+  <data name="Controls.TripleTap.next" xml:space="preserve"><value>Next track</value></data>
+  <data name="Controls.TripleTap.prev" xml:space="preserve"><value>Previous track</value></data>
+  <data name="Controls.MultiTap.off" xml:space="preserve"><value>Disabled</value></data>
+  <data name="Controls.MultiTap.volume-up" xml:space="preserve"><value>Volume up</value></data>
+  <data name="Controls.MultiTap.volume-down" xml:space="preserve"><value>Volume down</value></data>
+
   <!-- Integration (M4) -->
   <data name="Integration.Notifications" xml:space="preserve"><value>Notifications</value></data>
   <data name="Integration.LowBattery" xml:space="preserve"><value>Low battery alert</value></data>

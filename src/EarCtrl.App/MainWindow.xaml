@@ -27,7 +27,7 @@
                                        Content="{Binding [Nav.Anc], Source={x:Static services:LocSource.Instance}}" />
                 <ui:NavigationViewItem Tag="Equalizer" Icon="{ui:SymbolIcon Options24}" TargetPageType="{x:Type pages:EqualizerPage}"
                                        Content="{Binding [Nav.Equalizer], Source={x:Static services:LocSource.Instance}}" />
-                <ui:NavigationViewItem Tag="Controls" Icon="{ui:SymbolIcon TapDouble24}" TargetPageType="{x:Type pages:ControlsPlaceholder}"
+                <ui:NavigationViewItem Tag="Controls" Icon="{ui:SymbolIcon TapDouble24}" TargetPageType="{x:Type pages:ControlsPage}"
                                        Content="{Binding [Nav.Controls], Source={x:Static services:LocSource.Instance}}" />
                 <ui:NavigationViewItem Tag="Integration" Icon="{ui:SymbolIcon PuzzlePiece24}" TargetPageType="{x:Type pages:IntegrationPage}"
                                        Content="{Binding [Nav.Integration], Source={x:Static services:LocSource.Instance}}" />
