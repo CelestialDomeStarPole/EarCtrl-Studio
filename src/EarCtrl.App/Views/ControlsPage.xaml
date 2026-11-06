@@ -177,7 +177,7 @@
                 </StackPanel>
             </ui:Card>
 
-            <!-- 长按切换降噪的循环模式（module: controls.ancCycle.left/right） -->
+            <!-- 长按切换降噪的循环模式（module: controls.ancCycle.left）：固件左右联动，只显示一行 -->
             <ui:Card x:Name="AncCycleCard">
                 <StackPanel>
                     <ui:TextBlock FontTypography="Subtitle"
@@ -186,26 +186,14 @@
                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                   Text="{Binding [Controls.AncCycle.Desc], Source={x:Static services:LocSource.Instance}}" />
 
-                    <Grid x:Name="LeftCycleRow" Margin="0,12,0,0">
+                    <Grid x:Name="CycleRow" Margin="0,12,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <ui:TextBlock Grid.Column="0" VerticalAlignment="Center"
-                                      Text="{Binding [Controls.Left], Source={x:Static services:LocSource.Instance}}" />
-                        <ComboBox x:Name="LeftCycleCombo" Grid.Column="1" Width="220" MinHeight="34"
-                                  SelectedValuePath="Value" DisplayMemberPath="Label"
-                                  SelectionChanged="OnGestureChanged" />
-                    </Grid>
-
-                    <Grid x:Name="RightCycleRow" Margin="0,12,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <ui:TextBlock Grid.Column="0" VerticalAlignment="Center"
-                                      Text="{Binding [Controls.Right], Source={x:Static services:LocSource.Instance}}" />
-                        <ComboBox x:Name="RightCycleCombo" Grid.Column="1" Width="220" MinHeight="34"
+                                      Text="{Binding [Controls.AncCycle.Mode], Source={x:Static services:LocSource.Instance}}" />
+                        <ComboBox x:Name="CycleCombo" Grid.Column="1" Width="220" MinHeight="34"
                                   SelectedValuePath="Value" DisplayMemberPath="Label"
                                   SelectionChanged="OnGestureChanged" />
                     </Grid>

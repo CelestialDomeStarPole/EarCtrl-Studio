@@ -117,10 +117,8 @@ public partial class ControlsPage : Page
                 FeatureModules.ControlsMultiTapLeft, s => s.MultiTapLeft, MultiRaw),
             new GestureRow(MultiRightCombo, MultiRightRow, "multi", "action", "right",
                 FeatureModules.ControlsMultiTapRight, s => s.MultiTapRight, MultiRaw),
-            new GestureRow(LeftCycleCombo, LeftCycleRow, "long", "ancCycle", "left",
-                FeatureModules.ControlsAncCycleLeft, s => s.AncCycleLeft, CycleRaw),
-            new GestureRow(RightCycleCombo, RightCycleRow, "long", "ancCycle", "right",
-                FeatureModules.ControlsAncCycleRight, s => s.AncCycleRight, CycleRaw),
+            new GestureRow(CycleCombo, CycleRow, "long", "ancCycle", "left",
+                FeatureModules.ControlsAncCycleLeft, s => s.AncCycleLeft ?? s.AncCycleRight, CycleRaw),
         });
         Loaded += (_, _) => Subscribe();
         Unloaded += (_, _) => Unsubscribe();
@@ -259,7 +257,7 @@ public partial class ControlsPage : Page
                && state.DoubleTapLeft is not null && state.DoubleTapRight is not null
                && state.TripleTapLeft is not null && state.TripleTapRight is not null
                && state.MultiTapLeft is not null && state.MultiTapRight is not null
-               && state.AncCycleLeft is not null && state.AncCycleRight is not null;
+               && (state.AncCycleLeft is not null || state.AncCycleRight is not null);
     }
 
     private bool CardVisible(string gesture, string kind)

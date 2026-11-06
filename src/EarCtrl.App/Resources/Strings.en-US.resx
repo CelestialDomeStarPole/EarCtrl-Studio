@@ -126,7 +126,8 @@
   <data name="Controls.Right" xml:space="preserve"><value>Right earbud</value></data>
   <data name="Controls.InCall" xml:space="preserve"><value>In-call long press</value></data>
   <data name="Controls.AncCycle" xml:space="preserve"><value>Noise-control cycle on long press</value></data>
-  <data name="Controls.AncCycle.Desc" xml:space="preserve"><value>Noise-control modes cycled in order when the long-press action is set to "Cycle noise control" (independent per earbud).</value></data>
+  <data name="Controls.AncCycle.Desc" xml:space="preserve"><value>Noise-control modes cycled in order when the long-press action is set to "Cycle noise control" (the earbud firmware applies to both sides, so only one setting is needed).</value></data>
+  <data name="Controls.AncCycle.Mode" xml:space="preserve"><value>Cycle modes</value></data>
   <data name="Controls.NotSupported" xml:space="preserve"><value>This device does not support long-press settings.</value></data>
   <data name="Controls.Timeout" xml:space="preserve"><value>The earbuds did not confirm the long-press setting. Try again.</value></data>
   <data name="Controls.Action.off" xml:space="preserve"><value>Disabled</value></data>

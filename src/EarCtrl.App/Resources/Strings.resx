@@ -126,7 +126,8 @@
   <data name="Controls.Right" xml:space="preserve"><value>右耳</value></data>
   <data name="Controls.InCall" xml:space="preserve"><value>通话中长按</value></data>
   <data name="Controls.AncCycle" xml:space="preserve"><value>长按切换降噪的循环模式</value></data>
-  <data name="Controls.AncCycle.Desc" xml:space="preserve"><value>长按动作设为「切换降噪」时，按顺序循环的降噪模式组合（左右耳独立）。</value></data>
+  <data name="Controls.AncCycle.Desc" xml:space="preserve"><value>长按动作设为「切换降噪」时，按顺序循环的降噪模式组合（耳机固件左右耳联动，只需设置一次）。</value></data>
+  <data name="Controls.AncCycle.Mode" xml:space="preserve"><value>循环模式</value></data>
   <data name="Controls.NotSupported" xml:space="preserve"><value>该设备不支持长按设置。</value></data>
   <data name="Controls.Timeout" xml:space="preserve"><value>耳机未确认长按设置，请重试。</value></data>
   <data name="Controls.Action.off" xml:space="preserve"><value>关闭</value></data>
